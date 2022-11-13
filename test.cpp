@@ -6,12 +6,12 @@ torch::Tensor d_sigmoid(torch::Tensor x) {
 }
 
 torch::Tensor test_forward(torch::Tensor x) {
-  auto s = torch::sigmoid(input);
+  auto s = torch::sigmoid(x);
   return s;
 }
 
 torch::Tensor test_backward(torch::Tensor x) {
-  auto s = d_sigmoid(input);
+  auto s = d_sigmoid(x);
   return s;
 }
 
