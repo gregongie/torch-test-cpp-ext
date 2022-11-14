@@ -5,6 +5,8 @@
 torch::Tensor circularFanbeamProjection(torch::Tensor image, float ximageside, float yimageside,
                               float radius, float source_to_detector,
                               int nviews, float slen, int nbins) {
+  const auto dev_type = image.device().type()
+  const auto dev_index  = image.device().index()
   const auto aimage = image.accessor<float,2>();
   const auto nx = aimage.size(0);
   const auto ny = aimage.size(1);
@@ -22,7 +24,7 @@ torch::Tensor circularFanbeamProjection(torch::Tensor image, float ximageside, f
   const auto du = detectorlength/nbins;
   const auto ds = slen/nviews;
 
-  torch::Tensor sinogram = torch::zeros({nviews,nbins});
+  torch::Tensor sinogram = torch::zeros({nviews,nbins}, torch::device(dev_type, dev_index));
   auto asinogram = sinogram.accessor<float, 2>(); //accessor for updating values of sinogram
 
   //loop over views -- parallelize over this loop!
