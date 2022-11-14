@@ -6,8 +6,8 @@ torch::Tensor circularFanbeamProjection(torch::Tensor image, float ximageside, f
                               float radius, float source_to_detector,
                               int nviews, float slen, int nbins) {
   const auto aimage = image.accessor<float,2>();
-  const auto nx = aimg.size(0);
-  const auto ny = aimg.size(1);
+  const auto nx = aimage.size(0);
+  const auto ny = aimage.size(1);
 
   const auto dx = ximageside/nx;
   const auto dy = yimageside/ny;
@@ -22,7 +22,7 @@ torch::Tensor circularFanbeamProjection(torch::Tensor image, float ximageside, f
   const auto du = detectorlength/nbins;
   const auto ds = slen/nviews;
 
-  torch::Tensor sinogram = torch::zeros({nview,nbins});
+  torch::Tensor sinogram = torch::zeros({nviews,nbins});
   auto asinogram = sinogram.accessor<float, 2>(); //accessor for updating values of sinogram
 
   //loop over views -- parallelize over this loop!
@@ -34,7 +34,7 @@ torch::Tensor circularFanbeamProjection(torch::Tensor image, float ximageside, f
     auto ysource = radius*sin(s);
 
     // detector center
-    auto DetCenter = (radius - source_to_detector)*cos(s);
+    auto xDetCenter = (radius - source_to_detector)*cos(s);
     auto yDetCenter = (radius - source_to_detector)*sin(s);
 
     // unit vector in the direction of the detector line
@@ -42,8 +42,8 @@ torch::Tensor circularFanbeamProjection(torch::Tensor image, float ximageside, f
     auto euy =  cos(s);
 
     //Unit vector in the direction perpendicular to the detector line
-    auto ewx = cos(s);
-    auto ewy = sin(s);
+    // auto ewx = cos(s);
+    // auto ewy = sin(s);
 
     //loop over detector views
     for (int uindex = 0; uindex < nbins; uindex++){
@@ -59,12 +59,13 @@ torch::Tensor circularFanbeamProjection(torch::Tensor image, float ximageside, f
       auto xad = abs(xdiff)*dy;
       auto yad = abs(ydiff)*dx;
 
+      float raysum = 0.0; // acculumator variable
+
       if (xad > yad){  // loop through x-layers of image if xad>yad. This ensures ray hits only one or two pixels per layer
         auto slope = ydiff/xdiff;
         auto travPixlen = dx*sqrt(1+slope*slope);
         auto yIntOld = ysource+slope*(xl-xsource);
         int iyOld = static_cast<int>(floor((yIntOld-y0)/dy));
-        float raysum = 0.0;
         // loop over x-layers
         for (int ix = 0; ix < nx; ix++){
            auto x=xl+dx*(ix + 1.0);
@@ -72,19 +73,19 @@ torch::Tensor circularFanbeamProjection(torch::Tensor image, float ximageside, f
            int iy = static_cast<int>(floor((yIntercept-y0)/dy));
            if (iy == iyOld){ // if true, ray stays in the same pixel for this x-layer
               if ((iy >= 0) && (iy < ny)) {
-                 raysum=raysum+travPixlen*aimage[ix,iy];
+                 raysum=raysum+travPixlen*aimage[ix][iy];
               }
            } else {    // else case is if ray hits two pixels for this x-layer
-              auto yMid=dy*max(iy,iyOld)+yl;
+              auto yMid=dy*std::max(iy,iyOld)+yl;
               auto ydist1=abs(yMid-yIntOld);
               auto ydist2=abs(yIntercept-yMid);
               auto frac1=ydist1/(ydist1+ydist2);
               auto frac2=1.0-frac1;
               if ((iyOld >= 0) && (iyOld < ny)){
-                 raysum += frac1*travPixlen*aimage[ix,iyOld];
+                 raysum += frac1*travPixlen*aimage[ix][iyOld];
                }
               if ((iy>=0) && (iy<ny)){
-                 raysum += frac2*travPixlen*aimage[ix,iy];
+                 raysum += frac2*travPixlen*aimage[ix][iy];
                }
            }
            iyOld=iy;
@@ -96,7 +97,6 @@ torch::Tensor circularFanbeamProjection(torch::Tensor image, float ximageside, f
         auto travPixlen=dy*sqrt(1.0+slopeinv*slopeinv);
         auto xIntOld=xsource+slopeinv*(yl-ysource);
         int ixOld= static_cast<int>(floor((xIntOld-x0)/dx));
-        float raysum = 0.0;
         // loop over y-layers
         for (int iy = 0; iy < ny; iy++){
            auto y=yl+dy*(iy + 1.0);
@@ -104,26 +104,26 @@ torch::Tensor circularFanbeamProjection(torch::Tensor image, float ximageside, f
            int ix = static_cast<int>(floor((xIntercept-x0)/dx));
            if (ix == ixOld){// if true, ray stays in the same pixel for this y-layer
               if ((ix >= 0) && (ix < nx)){
-                 raysum += travPixlen*aimage[ix,iy];
+                 raysum += travPixlen*aimage[ix][iy];
                }
            } else {  // else case is if ray hits two pixels for this y-layer
-              auto xMid=dx*max(ix,ixOld)+xl;
+              auto xMid=dx*std::max(ix,ixOld)+xl;
               auto xdist1=abs(xMid-xIntOld);
               auto xdist2=abs(xIntercept-xMid);
               auto frac1=xdist1/(xdist1+xdist2);
               auto frac2=1.0-frac1;
               if ((ixOld >= 0) && (ixOld < nx)){
-                 raysum += frac1*travPixlen*aimage[ixOld,iy];
+                 raysum += frac1*travPixlen*aimage[ixOld][iy];
               }
               if ((ix>=0) && (ix<nx)){
-                 raysum += frac2*travPixlen*aimage[ix,iy];
+                 raysum += frac2*travPixlen*aimage[ix][iy];
               }
            ixOld = ix;
            xIntOld = xIntercept;
           }
          }
       }
-    asinogram[sindex,uindex]=raysum;
+    asinogram[sindex][uindex]=raysum;
    }
  }
  return sinogram;
