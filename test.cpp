@@ -5,8 +5,8 @@
 torch::Tensor circularFanbeamProjection(torch::Tensor image, float ximageside, float yimageside,
                               float radius, float source_to_detector,
                               int nviews, float slen, int nbins) {
-  const auto dev_type = image.device().type()
-  const auto dev_index  = image.device().index()
+  const auto dev_type = image.device().type();
+  const auto dev_index  = image.device().index();
   const auto aimage = image.accessor<float,2>();
   const auto nx = aimage.size(0);
   const auto ny = aimage.size(1);
