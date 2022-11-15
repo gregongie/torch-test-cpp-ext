@@ -191,14 +191,16 @@ torch::Tensor circularFanbeamBackProjection(const torch::Tensor sinogram, const 
               float det_int_y = ysource+rayratio*(pix_y-ysource);
 
               float upos = ((det_int_x-xDetCenter)*eux +(det_int_y-yDetCenter)*euy);
+              float det_value;
+
               if ((upos-u0 >= du/2.0) && (upos-u0 < detectorlength-du/2.0)){
                  float bin_loc = (upos-u0)/du + 0.5;
                  int nbin1 = static_cast<int>(bin_loc)-1;
                  int nbin2 = nbin1+1;
                  float frac= bin_loc - static_cast<int>(bin_loc);
-                 float det_value=frac*sinogram_a[sindex][nbin2]+(1.0-frac)*sinogram_a[sindex][nbin1];
+                 det_value = frac*sinogram_a[sindex][nbin2]+(1.0-frac)*sinogram_a[sindex][nbin1];
               } else {
-                 float det_value = 0.0;
+                 det_value = 0.0;
               }
               image_a[ix][iy] += bpweight*det_value*ds;
           }
