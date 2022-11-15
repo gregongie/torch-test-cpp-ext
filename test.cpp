@@ -145,9 +145,13 @@ torch::Tensor circularFanbeamBackProjection(const torch::Tensor sinogram, const 
    const float du = detectorlength/nbins;
    const float ds = slen/nviews;
 
+   const float fov_radius = ximageside/2.0;
+
    torch::Tensor image = torch::zeros({nx, ny}); //initialize image
    auto image_a = image.accessor<float,2>(); //accessor for updating values of image
    const auto sinogram_a = sinogram.accessor<float,2>(); //accessor for accessing values of sinogram
+
+   const float pi = 4*atan(1);
 
    //loop over views -- parallelize over this loop!
    for (int sindex = 0; sindex < nviews; sindex++){
@@ -187,7 +191,7 @@ torch::Tensor circularFanbeamBackProjection(const torch::Tensor sinogram, const 
               float det_int_y = ysource+rayratio*(pix_y-ysource);
 
               float upos = ((det_int_x-xDetCenter)*eux +(det_int_y-yDetCenter)*euy);
-              if ((upos-u0 >= du/2.) && (upos-u0 < detectorlength-du/2.0)){
+              if ((upos-u0 >= du/2.0) && (upos-u0 < detectorlength-du/2.0)){
                  float bin_loc = (upos-u0)/du + 0.5;
                  int nbin1 = static_cast<int>(bin_loc)-1;
                  int nbin2 = nbin1+1;
@@ -196,7 +200,7 @@ torch::Tensor circularFanbeamBackProjection(const torch::Tensor sinogram, const 
               } else {
                  float det_value = 0.0;
               }
-              image_a[ix,iy] += bpweight*det_value*ds;
+              image_a[ix][iy] += bpweight*det_value*ds;
           }
        }
     }
