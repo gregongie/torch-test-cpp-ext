@@ -207,6 +207,7 @@ torch::Tensor circularFanbeamBackProjection(const torch::Tensor sinogram, const 
        }
     }
   }
+  return image;
 }
 
 
