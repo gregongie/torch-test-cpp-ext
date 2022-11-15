@@ -5,8 +5,6 @@
 torch::Tensor circularFanbeamProjection(torch::Tensor image, float ximageside, float yimageside,
                               float radius, float source_to_detector,
                               int nviews, float slen, int nbins) {
-  const auto dev_type = image.device().type();
-  const auto dev_index  = image.device().index();
   const auto aimage = image.accessor<float,2>();
   const int nx = aimage.size(0);
   const int ny = aimage.size(1);
@@ -24,9 +22,7 @@ torch::Tensor circularFanbeamProjection(torch::Tensor image, float ximageside, f
   const auto du = detectorlength/nbins;
   const auto ds = slen/nviews;
 
-  auto options = torch::TensorOptions().device(dev_type, dev_index);
-  torch::Tensor sinogram = torch::zeros({nviews, nbins}, options);
-
+  torch::Tensor sinogram = torch::zeros({nviews, nbins});
   auto asinogram = sinogram.accessor<float,2>(); //accessor for updating values of sinogram
 
   //loop over views -- parallelize over this loop!
@@ -45,7 +41,7 @@ torch::Tensor circularFanbeamProjection(torch::Tensor image, float ximageside, f
     auto eux = -sin(s);
     auto euy =  cos(s);
 
-    //Unit vector in the direction perpendicular to the detector line
+    //Unit vector in the direction perpendicular to the detector line -- unused
     // auto ewx = cos(s);
     // auto ewy = sin(s);
 
@@ -133,11 +129,11 @@ torch::Tensor circularFanbeamProjection(torch::Tensor image, float ximageside, f
  return sinogram;
 }
 
-torch::Tensor test_backward(torch::Tensor x) {
-  return x;
-}
+// torch::Tensor test_backward(torch::Tensor x) {
+//   return x;
+// }
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("forward", &circularFanbeamProjection, "Test forward");
-  m.def("backward", &test_backward, "Test backward");
+  // m.def("backward", &test_backward, "Test backward");
 }
