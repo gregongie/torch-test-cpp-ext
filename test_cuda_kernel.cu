@@ -9,21 +9,18 @@
 __global__ void projection_view_kernel(
                     const torch::PackedTensorAccessor32<float,2> image,
                     torch::PackedTensorAccessor32<float,2> sinogram,
-                    const std::vector<float> geom,
+                    const float dx,
+                    const float dy,
+                    const float x0,
+                    const float y0,
+                    const float fanangle2,
+                    const float detectorlength,
+                    const float u0,
+                    const float du,
+                    const float ds,
+                    const float radius,
+                    const float source_to_detector,
                     const int nbins){
-
-  // unpack geometry
-  const float dx = geom[0];
-  const float dy = geom[1];
-  const float x0 = geom[2];
-  const float y0 = geom[3];
-  const float fanangle2 = geom[4];
-  const float detectorlength = geom[5];
-  const float u0 = geom[6];
-  const float du = geom[7];
-  const float ds = geom[8];
-  const float radius = geom[9];
-  const float source_to_detector = geom[10];
 
   const int nx = image.size(0);
   const int ny = image.size(1);
@@ -147,8 +144,6 @@ torch::Tensor circularFanbeamProjection_cuda(const torch::Tensor image, float xi
 
     const auto image_a = image.packed_accessor32<float,2>();
 
-    const std::vector<float> geom = {dx,dy,x0,y0,fanangle2,detectorlength,u0,du,ds,radius,source_to_detector};
-
     const auto options = torch::TensorOptions().device(torch::kCUDA);
     torch::Tensor sinogram = torch::zeros({nviews, nbins}, options);
     auto sinogram_a = sinogram.packed_accessor32<float,2>();
@@ -157,7 +152,20 @@ torch::Tensor circularFanbeamProjection_cuda(const torch::Tensor image, float xi
     // const dim3 blocks((512 + threads - 1) / threads, 1);
     const int blocks = 1; //match to batch size in future?
 
-    projection_view_kernel<<<blocks, threads>>>(image_a, sinogram_a, geom, nbins);
+    projection_view_kernel<<<blocks, threads>>>(image_a,
+                                                sinogram_a,
+                                                dx,
+                                                dy,
+                                                x0,
+                                                y0,
+                                                fanangle2,
+                                                detectorlength,
+                                                u0,
+                                                du,
+                                                ds,
+                                                radius,
+                                                source_to_detector,
+                                                nbins);
 
     return sinogram;
 }
