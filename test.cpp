@@ -8,26 +8,26 @@ torch::Tensor circularFanbeamProjection(torch::Tensor image, float ximageside, f
   const auto dev_type = image.device().type();
   const auto dev_index  = image.device().index();
   const auto aimage = image.accessor<float,2>();
-  const auto nx = aimage.size(0);
-  const auto ny = aimage.size(1);
+  const int nx = aimage.size(0);
+  const int ny = aimage.size(1);
 
   const auto dx = ximageside/nx;
   const auto dy = yimageside/ny;
-  const auto x0 = -ximageside/2;
-  const auto y0 = -yimageside/2;
+  const auto x0 = -ximageside/2.0;
+  const auto y0 = -yimageside/2.0;
 
   // compute length of detector so that it views the inscribed FOV of the image array
-  const auto fanangle2 = asin((ximageside/2)/radius);  //This only works for ximageside = yimageside
-  const auto detectorlength = 2*tan(fanangle2)*source_to_detector;
-  const auto u0 = -detectorlength/2;
+  const auto fanangle2 = asin((ximageside/2.0)/radius);  //This only works for ximageside = yimageside
+  const auto detectorlength = 2.0*tan(fanangle2)*source_to_detector;
+  const auto u0 = -detectorlength/2.0;
 
   const auto du = detectorlength/nbins;
   const auto ds = slen/nviews;
 
   auto options = torch::TensorOptions().device(dev_type, dev_index);
+  torch::Tensor sinogram = torch::zeros({nviews, nbins}, options);
 
-  torch::Tensor sinogram = torch::zeros({nviews,nbins}, options);
-  auto asinogram = sinogram.accessor<float, 2>(); //accessor for updating values of sinogram
+  auto asinogram = sinogram.accessor<float,2>(); //accessor for updating values of sinogram
 
   //loop over views -- parallelize over this loop!
   for (int sindex = 0; sindex < nviews; sindex++){
@@ -67,7 +67,7 @@ torch::Tensor circularFanbeamProjection(torch::Tensor image, float ximageside, f
 
       if (xad > yad){  // loop through x-layers of image if xad>yad. This ensures ray hits only one or two pixels per layer
         auto slope = ydiff/xdiff;
-        auto travPixlen = dx*sqrt(1+slope*slope);
+        auto travPixlen = dx*sqrt(1.0+slope*slope);
         auto yIntOld = ysource+slope*(xl-xsource);
         int iyOld = static_cast<int>(floor((yIntOld-y0)/dy));
         // loop over x-layers
@@ -77,7 +77,7 @@ torch::Tensor circularFanbeamProjection(torch::Tensor image, float ximageside, f
            int iy = static_cast<int>(floor((yIntercept-y0)/dy));
            if (iy == iyOld){ // if true, ray stays in the same pixel for this x-layer
               if ((iy >= 0) && (iy < ny)) {
-                 raysum=raysum+travPixlen*aimage[ix][iy];
+                 raysum += travPixlen*aimage[ix][iy];
               }
            } else {    // else case is if ray hits two pixels for this x-layer
               auto yMid=dy*std::max(iy,iyOld)+yl;
@@ -122,12 +122,12 @@ torch::Tensor circularFanbeamProjection(torch::Tensor image, float ximageside, f
               if ((ix>=0) && (ix<nx)){
                  raysum += frac2*travPixlen*aimage[ix][iy];
               }
+           }
            ixOld = ix;
            xIntOld = xIntercept;
-          }
          }
       }
-    asinogram[sindex][uindex]=raysum;
+      asinogram[sindex][uindex]=raysum;
    }
  }
  return sinogram;
