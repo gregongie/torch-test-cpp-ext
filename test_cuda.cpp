@@ -1,8 +1,9 @@
 #include <torch/extension.h>
 
-torch::Tensor circularFanbeamProjection_cuda(torch::Tensor image, float ximageside, float yimageside,
-                              float radius, float source_to_detector,
-                              int nviews, float slen, int nbins) ;
+torch::Tensor circularFanbeamProjection_cuda(const torch::Tensor image, const int nx, const int ny,
+                              const float ximageside, const float yimageside,
+                              const float radius, const float source_to_detector,
+                              const int nviews, const float slen, const int nbins);
 
 // C++ interface
 
@@ -10,11 +11,11 @@ torch::Tensor circularFanbeamProjection_cuda(torch::Tensor image, float ximagesi
 #define CHECK_CONTIGUOUS(x) TORCH_CHECK(x.is_contiguous(), #x " must be contiguous")
 #define CHECK_INPUT(x) CHECK_CUDA(x); CHECK_CONTIGUOUS(x)
 
-torch::Tensor circularFanbeamProjection(torch::Tensor image, float ximageside, float yimageside,
-                              float radius, float source_to_detector,
-                              int nviews, float slen, int nbins) {
+torch::Tensor circularFanbeamProjection(const torch::Tensor image, const int nx, const int ny, const float ximageside, const float yimageside,
+                              const float radius, const float source_to_detector,
+                              const int nviews, const float slen, const int nbins) {
   CHECK_INPUT(image);
-  return circularFanbeamProjection_cuda(image, ximageside, yimageside,
+  return circularFanbeamProjection_cuda(image, nx, ny, ximageside, yimageside,
     radius, source_to_detector, nviews, slen, nbins);
 }
 

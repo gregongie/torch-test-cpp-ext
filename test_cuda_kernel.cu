@@ -126,11 +126,11 @@ __global__ void projection_view_kernel(
  }
 }
 
-torch::Tensor circularFanbeamProjection_cuda(const torch::Tensor image, float ximageside, float yimageside,
-                              float radius, float source_to_detector,
-                              int nviews, float slen, int nbins) {
-    const float dx = ximageside/image.size(0);
-    const float dy = yimageside/image.size(1);
+torch::Tensor circularFanbeamProjection_cuda(const torch::Tensor image, const int nx, const int ny, const float ximageside, const float yimageside,
+                              const float radius, const float source_to_detector,
+                              const int nviews, const float slen, const int nbins) {
+    const float dx = ximageside/nx;
+    const float dy = yimageside/ny;
     const float x0 = -ximageside/2.0;
     const float y0 = -yimageside/2.0;
 
