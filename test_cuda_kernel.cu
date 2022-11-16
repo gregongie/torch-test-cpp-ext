@@ -164,8 +164,8 @@ __global__ void backprojection_view_kernel(
                     float euy =  cos(s);
 
                     //Unit vector in the direction perpendicular to the detector line
-                    float ewx = cos(s)
-                    float ewy = sin(s)
+                    float ewx = cos(s);
+                    float ewy = sin(s);
 
                     for (int iy = 0; iy < ny; iy++){
                        float pix_y = y0 + dy*(iy+0.5);
