@@ -145,6 +145,9 @@ __global__ void backprojection_view_kernel(
                     const float fov_radius,
                     const float pi){
 
+                    const int nx = image.size(0);
+                    const int ny = image.size(1);
+
                     const int sindex = threadIdx.x;
                     float s = sindex*ds;
 
@@ -263,8 +266,9 @@ torch::Tensor circularFanbeamBackProjection_cuda(const torch::Tensor sinogram, c
 
    const float fov_radius = ximageside/2.0;
 
-   torch::Tensor image = torch::zeros({nx, ny}); //initialize image
-   auto image_a = image.accessor<float,2>(); //accessor for updating values of image
+   const auto options = torch::TensorOptions().device(torch::kCUDA);
+   torch::Tensor image = torch::zeros({nx, ny}, options); //initialize image
+   auto image_a = image.packed_accessor32<float,2>(); //accessor for updating values of image
    const auto sinogram_a = sinogram.packed_accessor32<float,2>(); //accessor for accessing values of sinogram
 
    const float pi = 4*atan(1);
@@ -273,21 +277,21 @@ torch::Tensor circularFanbeamBackProjection_cuda(const torch::Tensor sinogram, c
    // const dim3 blocks((512 + threads - 1) / threads, 1);
    const int blocks = 1; //match to batch size in future?
 
-   backprojection_view_kernel<<<blocks, threads>>>(image_a,
-                                               sinogram_a,
-                                               dx,
-                                               dy,
-                                               x0,
-                                               y0,
-                                               fanangle2,
-                                               detectorlength,
-                                               u0,
-                                               du,
-                                               ds,
-                                               radius,
-                                               source_to_detector,
-                                               nbins,
-                                               fov_radius,
-                                               pi);
+   backprojection_view_kernel<<<blocks, threads>>>(sinogram_a,
+                                                  image_a,
+                                                   dx,
+                                                   dy,
+                                                   x0,
+                                                   y0,
+                                                   fanangle2,
+                                                   detectorlength,
+                                                   u0,
+                                                   du,
+                                                   ds,
+                                                   radius,
+                                                   source_to_detector,
+                                                   nbins,
+                                                   fov_radius,
+                                                   pi);
    return image;
 }
