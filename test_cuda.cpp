@@ -28,7 +28,7 @@ torch::Tensor circularFanbeamBackProjection(const torch::Tensor sinogram, const 
                               const float radius, const float source_to_detector,
                               const int nviews, const float slen, const int nbins) {
   CHECK_INPUT(sinogram);
-  return circularFanbeamProjection_cuda(image, nx, ny, ximageside, yimageside,
+  return circularFanbeamProjection_cuda(sinogram, nx, ny, ximageside, yimageside,
     radius, source_to_detector, nviews, slen, nbins);
 }
 
