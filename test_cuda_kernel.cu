@@ -126,6 +126,80 @@ __global__ void projection_view_kernel(
  }
 }
 
+// computes backprojetion over one view
+__global__ void backprojection_view_kernel(
+                    const torch::PackedTensorAccessor32<float,2> sinogram,
+                    torch::PackedTensorAccessor32<float,2> image,
+                    const float dx,
+                    const float dy,
+                    const float x0,
+                    const float y0,
+                    const float fanangle2,
+                    const float detectorlength,
+                    const float u0,
+                    const float du,
+                    const float ds,
+                    const float radius,
+                    const float source_to_detector,
+                    const int nbins,
+                    const float fov_radius,
+                    const float pi){
+
+                    const int sindex = threadIdx.x;
+                    float s = sindex*ds;
+
+                    // location of the source
+                    float xsource = radius*cos(s);
+                    float ysource = radius*sin(s);
+
+                    // detector center
+                    float xDetCenter = (radius - source_to_detector)*cos(s);
+                    float yDetCenter = (radius - source_to_detector)*sin(s);
+
+                    // unit vector in the direction of the detector line
+                    float eux = -sin(s);
+                    float euy =  cos(s);
+
+                    //Unit vector in the direction perpendicular to the detector line
+                    float ewx = euy; //cos(s)
+                    float ewy = -eux; //sin(s)
+
+                    for (int iy = 0; iy < ny; iy++){
+                       float pix_y = y0 + dy*(iy+0.5);
+                       for (int ix = 0; ix < nx; ix++){
+                          float pix_x = x0 + dx*(ix+0.5);
+
+                          float frad = sqrt(pix_x*pix_x + pix_y*pix_y);
+                          float fphi = atan2(pix_y,pix_x);
+                          if (frad<=fov_radius){
+                             float bigu = (radius+frad*sin(s-fphi-pi/2.0))/radius;
+                             float bpweight = 1.0/(bigu*bigu);
+
+                             float ew_dot_source_pix = (pix_x-xsource)*ewx + (pix_y-ysource)*ewy;
+                             float rayratio = -source_to_detector/ew_dot_source_pix;
+
+                             float det_int_x = xsource+rayratio*(pix_x-xsource);
+                             float det_int_y = ysource+rayratio*(pix_y-ysource);
+
+                             float upos = ((det_int_x-xDetCenter)*eux +(det_int_y-yDetCenter)*euy);
+                             float det_value;
+
+                             if ((upos-u0 >= du/2.0) && (upos-u0 < detectorlength-du/2.0)){
+                                float bin_loc = (upos-u0)/du + 0.5;
+                                int nbin1 = static_cast<int>(bin_loc)-1;
+                                int nbin2 = nbin1+1;
+                                float frac= bin_loc - static_cast<int>(bin_loc);
+                                det_value = frac*sinogram[sindex][nbin2]+(1.0-frac)*sinogram[sindex][nbin1];
+                             } else {
+                                det_value = 0.0;
+                             }
+                             image[ix][iy] += bpweight*det_value*ds;
+                         }
+                      }
+                   }
+
+}
+
 torch::Tensor circularFanbeamProjection_cuda(const torch::Tensor image, const int nx, const int ny, const float ximageside, const float yimageside,
                               const float radius, const float source_to_detector,
                               const int nviews, const float slen, const int nbins) {
@@ -168,4 +242,52 @@ torch::Tensor circularFanbeamProjection_cuda(const torch::Tensor image, const in
                                                 nbins);
 
     return sinogram;
+}
+
+torch::Tensor circularFanbeamBackProjection_cuda(const torch::Tensor sinogram, const int nx, const int ny,
+                              const float ximageside, const float yimageside,
+                              const float radius, const float source_to_detector,
+                              const int nviews, const float slen, const int nbins) {
+   const float dx = ximageside/nx;
+   const float dy = yimageside/ny;
+   const float x0 = -ximageside/2.0;
+   const float y0 = -yimageside/2.0;
+
+   // compute length of detector so that it views the inscribed FOV of the image array
+   const float fanangle2 = asin((ximageside/2.0)/radius);  //This only works for ximageside = yimageside
+   const float detectorlength = 2.0*tan(fanangle2)*source_to_detector;
+   const float u0 = -detectorlength/2.0;
+
+   const float du = detectorlength/nbins;
+   const float ds = slen/nviews;
+
+   const float fov_radius = ximageside/2.0;
+
+   torch::Tensor image = torch::zeros({nx, ny}); //initialize image
+   auto image_a = image.accessor<float,2>(); //accessor for updating values of image
+   const auto sinogram_a = sinogram.packed_accessor32<float,2>(); //accessor for accessing values of sinogram
+
+   const float pi = 4*atan(1);
+
+   const int threads = 512; //one per view?
+   // const dim3 blocks((512 + threads - 1) / threads, 1);
+   const int blocks = 1; //match to batch size in future?
+
+   backprojection_view_kernel<<<blocks, threads>>>(image_a,
+                                               sinogram_a,
+                                               dx,
+                                               dy,
+                                               x0,
+                                               y0,
+                                               fanangle2,
+                                               detectorlength,
+                                               u0,
+                                               du,
+                                               ds,
+                                               radius,
+                                               source_to_detector,
+                                               nbins,
+                                               fov_radius,
+                                               pi);
+   return image;
 }

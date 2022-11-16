@@ -5,6 +5,11 @@ torch::Tensor circularFanbeamProjection_cuda(const torch::Tensor image, const in
                               const float radius, const float source_to_detector,
                               const int nviews, const float slen, const int nbins);
 
+torch::Tensor circularFanbeamBackProjection_cuda(const torch::Tensor sinogram, const int nx, const int ny,
+                              const float ximageside, const float yimageside,
+                              const float radius, const float source_to_detector,
+                              const int nviews, const float slen, const int nbins);
+
 // C++ interface
 
 #define CHECK_CUDA(x) TORCH_CHECK(x.device().is_cuda(), #x " must be a CUDA tensor")
@@ -19,7 +24,15 @@ torch::Tensor circularFanbeamProjection(const torch::Tensor image, const int nx,
     radius, source_to_detector, nviews, slen, nbins);
 }
 
+torch::Tensor circularFanbeamBackProjection(const torch::Tensor sinogram, const int nx, const int ny, const float ximageside, const float yimageside,
+                              const float radius, const float source_to_detector,
+                              const int nviews, const float slen, const int nbins) {
+  CHECK_INPUT(sinogram);
+  return circularFanbeamProjection_cuda(image, nx, ny, ximageside, yimageside,
+    radius, source_to_detector, nviews, slen, nbins);
+}
+
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("forward", &circularFanbeamProjection, "Circular Fanbeam Projection");
-  // m.def("backward", &test_backward, "Test backward");
+  m.def("backward", &circularFanbeamBackProjection, "Circular Fanbeam Backprojection");
 }
