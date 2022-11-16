@@ -164,8 +164,8 @@ __global__ void backprojection_view_kernel(
                     float euy =  cos(s);
 
                     //Unit vector in the direction perpendicular to the detector line
-                    float ewx = euy; //cos(s)
-                    float ewy = -eux; //sin(s)
+                    float ewx = cos(s)
+                    float ewy = sin(s)
 
                     for (int iy = 0; iy < ny; iy++){
                        float pix_y = y0 + dy*(iy+0.5);
@@ -193,10 +193,12 @@ __global__ void backprojection_view_kernel(
                                 int nbin2 = nbin1+1;
                                 float frac= bin_loc - static_cast<int>(bin_loc);
                                 det_value = frac*sinogram[sindex][nbin2]+(1.0-frac)*sinogram[sindex][nbin1];
-                             } else {
-                                det_value = 0.0;
-                             }
-                             image[ix][iy] += bpweight*det_value*ds;
+                                atomicAdd(image[ix][iy],bpweight*det_value*ds);
+                              }
+                             // } else {
+                             //    det_value = 0.0;
+                             // }
+                             // image[ix][iy] += bpweight*det_value*ds;
                          }
                       }
                    }
