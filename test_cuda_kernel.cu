@@ -193,7 +193,7 @@ __global__ void backprojection_view_kernel(
                                 int nbin2 = nbin1+1;
                                 float frac= bin_loc - static_cast<int>(bin_loc);
                                 det_value = frac*sinogram[sindex][nbin2]+(1.0-frac)*sinogram[sindex][nbin1];
-                                atomicAdd(image[ix][iy],bpweight*det_value*ds);
+                                atomicAdd(&image[ix][iy],bpweight*det_value*ds);
                               }
                              // } else {
                              //    det_value = 0.0;
