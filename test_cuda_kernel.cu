@@ -128,8 +128,8 @@ __global__ void projection_view_kernel(
 
 // computes backprojetion over one view
 __global__ void backprojection_view_kernel(
-                    const torch::PackedTensorAccessor32<float,2> sinogram,
                     torch::PackedTensorAccessor32<float,2> image,
+                    const torch::PackedTensorAccessor32<float,2> sinogram,
                     const float dx,
                     const float dy,
                     const float x0,
@@ -269,6 +269,7 @@ torch::Tensor circularFanbeamBackProjection_cuda(const torch::Tensor sinogram, c
    const auto options = torch::TensorOptions().device(torch::kCUDA);
    torch::Tensor image = torch::zeros({nx, ny}, options); //initialize image
    auto image_a = image.packed_accessor32<float,2>(); //accessor for updating values of image
+
    const auto sinogram_a = sinogram.packed_accessor32<float,2>(); //accessor for accessing values of sinogram
 
    const float pi = 4*atan(1);
@@ -277,8 +278,8 @@ torch::Tensor circularFanbeamBackProjection_cuda(const torch::Tensor sinogram, c
    // const dim3 blocks((512 + threads - 1) / threads, 1);
    const int blocks = 1; //match to batch size in future?
 
-   backprojection_view_kernel<<<blocks, threads>>>(sinogram_a,
-                                                  image_a,
+   backprojection_view_kernel<<<blocks, threads>>>(image_a,
+                                                   sinogram_a,
                                                    dx,
                                                    dy,
                                                    x0,
