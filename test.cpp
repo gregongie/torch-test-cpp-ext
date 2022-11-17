@@ -227,13 +227,13 @@ torch::Tensor circularFanbeamBackProjection(const torch::Tensor sinogram, const 
    const float du = detectorlength/nbins;
    const float ds = slen/nviews;
 
-   const float fov_radius = ximageside/2.0;
+   // const float fov_radius = ximageside/2.0;
 
    torch::Tensor image = torch::zeros({nx, ny}); //initialize image
    auto image_a = image.accessor<float,2>(); //accessor for updating values of image
    const auto sinogram_a = sinogram.accessor<float,2>(); //accessor for accessing values of sinogram
 
-   const float pi = 4*std::atan(1.0);
+   // const float pi = 4*std::atan(1.0);
 
    //loop over views -- parallelize over this loop!
    for (int sindex = 0; sindex < nviews; sindex++){
@@ -256,7 +256,7 @@ torch::Tensor circularFanbeamBackProjection(const torch::Tensor sinogram, const 
      // float ewy = std::sin(s);
 
      for (int uindex = 0; uindex < nbins; uindex++){
-       auto sinoval = sinogram_a[sindex,uindex];
+       auto sinoval = sinogram_a[sindex][uindex];
        float u = u0+(uindex+0.5)*du;
        float xbin = xDetCenter + eux*u;
        float ybin = yDetCenter + euy*u;
@@ -295,8 +295,8 @@ torch::Tensor circularFanbeamBackProjection(const torch::Tensor sinogram, const 
                    image_a[ix][iy] += frac2*sinoval*travPixlen;
                  }
              }
-             iyOld=iy
-             yIntOld=yIntercept
+             iyOld=iy;
+             yIntOld=yIntercept;
            }
        } else { //loop through y-layers of image if xad<=yad
           float slopeinv=xdiff/ydiff;
