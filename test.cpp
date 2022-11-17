@@ -318,7 +318,7 @@ torch::Tensor circularFanbeamBackProjection(const torch::Tensor sinogram, const 
                 float frac1 = xdist1/(xdist1+xdist2);
                 float frac2=1.0-frac1;
                 if ((ixOld >= 0) && (ixOld < nx)){
-                   image[ixOld][iy] += frac1*sinoval*travPixlen;
+                   image_a[ixOld][iy] += frac1*sinoval*travPixlen;
                  }
                 if ((ix >= 0) && (ix < nx)){
                    image_a[ix][iy] += frac2*sinoval*travPixlen;
