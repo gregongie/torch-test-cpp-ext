@@ -127,7 +127,89 @@ torch::Tensor circularFanbeamProjection(const torch::Tensor image, const int nx,
  return sinogram;
 }
 
+// torch::Tensor circularFanbeamBackProjection(const torch::Tensor sinogram, const int nx, const int ny,
+//                               const float ximageside, const float yimageside,
+//                               const float radius, const float source_to_detector,
+//                               const int nviews, const float slen, const int nbins) {
+//    const float dx = ximageside/nx;
+//    const float dy = yimageside/ny;
+//    const float x0 = -ximageside/2.0;
+//    const float y0 = -yimageside/2.0;
+//
+//    // compute length of detector so that it views the inscribed FOV of the image array
+//    const float fanangle2 = asin((ximageside/2.0)/radius);  //This only works for ximageside = yimageside
+//    const float detectorlength = 2.0*tan(fanangle2)*source_to_detector;
+//    const float u0 = -detectorlength/2.0;
+//
+//    const float du = detectorlength/nbins;
+//    const float ds = slen/nviews;
+//
+//    const float fov_radius = ximageside/2.0;
+//
+//    torch::Tensor image = torch::zeros({nx, ny}); //initialize image
+//    auto image_a = image.accessor<float,2>(); //accessor for updating values of image
+//    const auto sinogram_a = sinogram.accessor<float,2>(); //accessor for accessing values of sinogram
+//
+//    const float pi = 4*atan(1);
+//
+//    //loop over views -- parallelize over this loop!
+//    for (int sindex = 0; sindex < nviews; sindex++){
+//      float s = sindex*ds;
+//
+//      // location of the source
+//      float xsource = radius*cos(s);
+//      float ysource = radius*sin(s);
+//
+//      // detector center
+//      float xDetCenter = (radius - source_to_detector)*cos(s);
+//      float yDetCenter = (radius - source_to_detector)*sin(s);
+//
+//      // unit vector in the direction of the detector line
+//      float eux = -sin(s);
+//      float euy =  cos(s);
+//
+//      //Unit vector in the direction perpendicular to the detector line
+//      float ewx = cos(s);
+//      float ewy = sin(s);
+//
+//      for (int iy = 0; iy < ny; iy++){
+//         float pix_y = y0 + dy*(iy+0.5);
+//         for (int ix = 0; ix < nx; ix++){
+//            float pix_x = x0 + dx*(ix+0.5);
+//
+//            float frad = sqrt(pix_x*pix_x + pix_y*pix_y);
+//            float fphi = atan2(pix_y,pix_x);
+//            if (frad<=fov_radius){
+//               float bigu = (radius+frad*sin(s-fphi-pi/2.0))/radius;
+//               float bpweight = 1.0/(bigu*bigu);
+//
+//               float ew_dot_source_pix = (pix_x-xsource)*ewx + (pix_y-ysource)*ewy;
+//               float rayratio = -source_to_detector/ew_dot_source_pix;
+//
+//               float det_int_x = xsource+rayratio*(pix_x-xsource);
+//               float det_int_y = ysource+rayratio*(pix_y-ysource);
+//
+//               float upos = ((det_int_x-xDetCenter)*eux +(det_int_y-yDetCenter)*euy);
+//               float det_value;
+//
+//               if ((upos-u0 >= du/2.0) && (upos-u0 < detectorlength-du/2.0)){
+//                  float bin_loc = (upos-u0)/du + 0.5;
+//                  int nbin1 = static_cast<int>(bin_loc)-1;
+//                  int nbin2 = nbin1+1;
+//                  float frac= bin_loc - static_cast<int>(bin_loc);
+//                  det_value = frac*sinogram_a[sindex][nbin2]+(1.0-frac)*sinogram_a[sindex][nbin1];
+//               } else {
+//                  det_value = 0.0;
+//               }
+//               image_a[ix][iy] += bpweight*det_value*ds;
+//           }
+//        }
+//     }
+//   }
+//   return image;
+// }
 
+// exact matrix transpose of circularFanbeamProjection
 torch::Tensor circularFanbeamBackProjection(const torch::Tensor sinogram, const int nx, const int ny,
                               const float ximageside, const float yimageside,
                               const float radius, const float source_to_detector,
@@ -138,8 +220,8 @@ torch::Tensor circularFanbeamBackProjection(const torch::Tensor sinogram, const 
    const float y0 = -yimageside/2.0;
 
    // compute length of detector so that it views the inscribed FOV of the image array
-   const float fanangle2 = asin((ximageside/2.0)/radius);  //This only works for ximageside = yimageside
-   const float detectorlength = 2.0*tan(fanangle2)*source_to_detector;
+   const float fanangle2 = std::asin((ximageside/2.0)/radius);  //This only works for ximageside = yimageside
+   const float detectorlength = 2.0*std::tan(fanangle2)*source_to_detector;
    const float u0 = -detectorlength/2.0;
 
    const float du = detectorlength/nbins;
@@ -151,64 +233,211 @@ torch::Tensor circularFanbeamBackProjection(const torch::Tensor sinogram, const 
    auto image_a = image.accessor<float,2>(); //accessor for updating values of image
    const auto sinogram_a = sinogram.accessor<float,2>(); //accessor for accessing values of sinogram
 
-   const float pi = 4*atan(1);
+   const float pi = 4*std::atan(1.0);
 
    //loop over views -- parallelize over this loop!
    for (int sindex = 0; sindex < nviews; sindex++){
      float s = sindex*ds;
 
      // location of the source
-     float xsource = radius*cos(s);
-     float ysource = radius*sin(s);
+     float xsource = radius*std::cos(s);
+     float ysource = radius*std::sin(s);
 
      // detector center
-     float xDetCenter = (radius - source_to_detector)*cos(s);
-     float yDetCenter = (radius - source_to_detector)*sin(s);
+     float xDetCenter = (radius - source_to_detector)*std::cos(s);
+     float yDetCenter = (radius - source_to_detector)*std::sin(s);
 
      // unit vector in the direction of the detector line
-     float eux = -sin(s);
-     float euy =  cos(s);
+     float eux = -std::sin(s);
+     float euy =  std::cos(s);
 
      //Unit vector in the direction perpendicular to the detector line
-     float ewx = cos(s);
-     float ewy = sin(s);
+     // float ewx = std::cos(s);
+     // float ewy = std::sin(s);
 
-     for (int iy = 0; iy < ny; iy++){
-        float pix_y = y0 + dy*(iy+0.5);
-        for (int ix = 0; ix < nx; ix++){
-           float pix_x = x0 + dx*(ix+0.5);
+     for (int uindex = 0; uindex < nbins; uindex++){
+       auto sinoval = sinogram_a[sindex,uindex];
+       float u = u0+(uindex+0.5)*du;
+       float xbin = xDetCenter + eux*u;
+       float ybin = yDetCenter + euy*u;
 
-           float frad = sqrt(pix_x*pix_x + pix_y*pix_y);
-           float fphi = atan2(pix_y,pix_x);
-           if (frad<=fov_radius){
-              float bigu = (radius+frad*sin(s-fphi-pi/2.0))/radius;
-              float bpweight = 1.0/(bigu*bigu);
+       float xl=x0;
+       float yl=y0;
 
-              float ew_dot_source_pix = (pix_x-xsource)*ewx + (pix_y-ysource)*ewy;
-              float rayratio = -source_to_detector/ew_dot_source_pix;
+       float xdiff=xbin-xsource;
+       float ydiff=ybin-ysource;
+       float xad=std::abs(xdiff)*dy;
+       float yad=std::abs(ydiff)*dx;
 
-              float det_int_x = xsource+rayratio*(pix_x-xsource);
-              float det_int_y = ysource+rayratio*(pix_y-ysource);
-
-              float upos = ((det_int_x-xDetCenter)*eux +(det_int_y-yDetCenter)*euy);
-              float det_value;
-
-              if ((upos-u0 >= du/2.0) && (upos-u0 < detectorlength-du/2.0)){
-                 float bin_loc = (upos-u0)/du + 0.5;
-                 int nbin1 = static_cast<int>(bin_loc)-1;
-                 int nbin2 = nbin1+1;
-                 float frac= bin_loc - static_cast<int>(bin_loc);
-                 det_value = frac*sinogram_a[sindex][nbin2]+(1.0-frac)*sinogram_a[sindex][nbin1];
-              } else {
-                 det_value = 0.0;
-              }
-              image_a[ix][iy] += bpweight*det_value*ds;
+       if (xad>yad){   // loop through x-layers of image if xad>yad. This ensures ray hits only one or two pixels per layer
+          float slope=ydiff/xdiff;
+          float travPixlen=dx*std::sqrt(1.0+slope*slope);
+          float yIntOld=ysource + slope*(xl-xsource);
+          int iyOld = static_cast<int>(std::floor((yIntOld-y0)/dy));
+          for (int ix = 0; ix < nx; ix++){
+             float x=xl+dx*(ix + 1.0);
+             float yIntercept=ysource+slope*(x-xsource);
+             int iy = static_cast<int>(std::floor((yIntercept-y0)/dy));
+             if (iy == iyOld){ // if true, ray stays in the same pixel for this x-layer
+                if ((iy >= 0) && (iy < ny)){
+                   image_a[ix][iy] += sinoval*travPixlen;
+                 }
+             } else {    // else case is if ray hits two pixels for this x-layer
+                float yMid = dy*std::max(iy,iyOld)+yl;
+                float ydist1 = std::abs(yMid-yIntOld);
+                float ydist2 = std::abs(yIntercept-yMid);
+                float frac1 = ydist1/(ydist1+ydist2);
+                float frac2 = 1.0-frac1;
+                if ((iyOld >= 0) && (iyOld < ny)){
+                   image_a[ix][iyOld] += frac1*sinoval*travPixlen;
+                 }
+                if ((iy >= 0) && (iy < ny)) {
+                   image_a[ix][iy] += frac2*sinoval*travPixlen;
+                 }
+             }
+             iyOld=iy
+             yIntOld=yIntercept
+           }
+       } else { //loop through y-layers of image if xad<=yad
+          float slopeinv=xdiff/ydiff;
+          float travPixlen=dy*std::sqrt(1.0+slopeinv*slopeinv);
+          float xIntOld=xsource+slopeinv*(yl-ysource);
+          int ixOld = static_cast<int>(std::floor((xIntOld-x0)/dx));
+          for (int iy = 0; iy < ny; iy++){
+             float y = yl + dy*(iy + 1.0);
+             float xIntercept = xsource+slopeinv*(y-ysource);
+             int ix = static_cast<int>(std::floor((xIntercept-x0)/dx));
+             if (ix == ixOld){ // if true, ray stays in the same pixel for this y-layer
+                if ((ix >= 0) && (ix < nx)) {
+                   image_a[ix][iy] += sinoval*travPixlen;
+                 }
+             } else { // else case is if ray hits two pixels for this y-layer
+                float xMid = dx*std::max(ix,ixOld)+xl;
+                float xdist1 = std::abs(xMid-xIntOld);
+                float xdist2 = std::abs(xIntercept-xMid);
+                float frac1 = xdist1/(xdist1+xdist2);
+                float frac2=1.0-frac1;
+                if ((ixOld >= 0) && (ixOld < nx)){
+                   image[ixOld][iy] += frac1*sinoval*travPixlen;
+                 }
+                if ((ix >= 0) && (ix < nx)){
+                   image_a[ix][iy] += frac2*sinoval*travPixlen;
+                 }
+             }
+             ixOld = ix;
+             xIntOld = xIntercept;
           }
-       }
-    }
-  }
-  return image;
+        }
+      } // end uindex for loop
+    } // end sindex for loop
+    // also should mask image to fovradius
+    return image;
 }
+
+// // Ray-driven fanbeam backprojection (exact matrix transpose of circularFanbeamProjection)
+// def circularFanbeamBackProjection(sinogram, image, fovmask=mask,
+//                               nx = nx, ny = ny, ximageside = ximageside, yimageside = yimageside,
+//                               radius = radius, source_to_detector = source_to_detector,
+//                               nviews = nviews, slen = slen,s0=s00, nbins = nbins):
+//
+//    image.fill(0.)
+//
+//    dx = ximageside/nx
+//    dy = yimageside/ny
+//    x0 = -ximageside/2.
+//    y0 = -yimageside/2.
+//
+//    #compute length of detector so that it views the inscribed FOV of the image array
+//    fanangle2 = arcsin((ximageside/2.)/radius)  # This only works for ximageside = yimageside
+//    detectorlength = 2.*tan(fanangle2)*source_to_detector
+//    u0 = -detectorlength/2.
+//
+//    du = detectorlength/nbins
+//    ds = slen/(nviews-1.)
+//
+//    for sindex in range(nviews):
+// #      print("Doing view number: ",sindex)   #UNCOMMENT if you want to see view progress
+//       s = s0+sindex*ds
+// # Location of the source
+//       xsource=radius*cos(s)
+//       ysource=radius*sin(s)
+//
+// # detector center
+//       xDetCenter=(radius - source_to_detector)*cos(s)
+//       yDetCenter=(radius - source_to_detector)*sin(s)
+//
+// # unit vector in the direction of the detector line
+//       eux = -sin(s)
+//       euy =  cos(s)
+//
+// # Unit vector in the direction perpendicular to the detector line
+//       ewx = cos(s)
+//       ewy = sin(s)
+//
+//       for uindex in range(nbins):
+//
+//          sinoval = sinogram[sindex,uindex]
+//          u = u0+(uindex+0.5)*du
+//          xbin = xDetCenter + eux*u
+//          ybin = yDetCenter + euy*u
+//
+//          xl=x0
+//          yl=y0
+//
+//          xdiff=xbin-xsource
+//          ydiff=ybin-ysource
+//          xad=abs(xdiff)*dy
+//          yad=abs(ydiff)*dx
+//
+//          if (xad>yad):   # loop through x-layers of image if xad>yad. This ensures ray hits only one or two pixels per layer
+//             slope=ydiff/xdiff
+//             travPixlen=dx*sqrt(1.0+slope*slope)
+//             yIntOld=ysource + slope*(xl-xsource)
+//             iyOld=int(floor((yIntOld-y0)/dy))
+//             for ix in range(nx):
+//                x=xl+dx*(ix + 1.0)
+//                yIntercept=ysource+slope*(x-xsource)
+//                iy=int(floor((yIntercept-y0)/dy))
+//                if iy == iyOld: # if true, ray stays in the same pixel for this x-layer
+//                   if ((iy >= 0) and (iy < ny)):
+//                      image[ix,iy] =image[ix,iy]+sinoval*travPixlen
+//                else:    # else case is if ray hits two pixels for this x-layer
+//                   yMid=dy*max(iy,iyOld)+yl
+//                   ydist1=abs(yMid-yIntOld)
+//                   ydist2=abs(yIntercept-yMid)
+//                   frac1=ydist1/(ydist1+ydist2)
+//                   frac2=1.0-frac1
+//                   if ((iyOld >= 0) and (iyOld < ny)):
+//                      image[ix,iyOld] =image[ix,iyOld]+frac1*sinoval*travPixlen
+//                   if ((iy>=0) and (iy<ny)):
+//                      image[ix,iy] =image[ix,iy]+frac2*sinoval*travPixlen
+//                iyOld=iy
+//                yIntOld=yIntercept
+//          else: # loop through y-layers of image if xad<=yad
+//             slopeinv=xdiff/ydiff
+//             travPixlen=dy*sqrt(1.0+slopeinv*slopeinv)
+//             xIntOld=xsource+slopeinv*(yl-ysource)
+//             ixOld=int(floor((xIntOld-x0)/dx))
+//             for iy in range(ny):
+//                y=yl+dy*(iy + 1.0)
+//                xIntercept=xsource+slopeinv*(y-ysource)
+//                ix=int(floor((xIntercept-x0)/dx))
+//                if (ix == ixOld): # if true, ray stays in the same pixel for this y-layer
+//                   if ((ix >= 0) and (ix < nx)):
+//                      image[ix,iy] =image[ix,iy]+sinoval*travPixlen
+//                else:  # else case is if ray hits two pixels for this y-layer
+//                   xMid=dx*max(ix,ixOld)+xl
+//                   xdist1=abs(xMid-xIntOld)
+//                   xdist2=abs(xIntercept-xMid)
+//                   frac1=xdist1/(xdist1+xdist2)
+//                   frac2=1.0-frac1
+//                   if ((ixOld >= 0) and (ixOld < nx)) :
+//                      image[ixOld,iy] =image[ixOld,iy]+frac1*sinoval*travPixlen
+//                   if ((ix>=0) and (ix<nx)) :
+//                      image[ix,iy] =image[ix,iy]+frac2*sinoval*travPixlen
+//                ixOld=ix
+//                xIntOld=xIntercept
+//       image *= fovmask
 
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
