@@ -10,6 +10,11 @@ torch::Tensor circularFanbeamBackProjection_cuda(const torch::Tensor sinogram, c
                               const float radius, const float source_to_detector,
                               const int nviews, const float slen, const int nbins);
 
+torch::Tensor circularFanbeamBackProjectionPixelDriven_cuda(const torch::Tensor sinogram, const int nx, const int ny,
+                              const float ximageside, const float yimageside,
+                              const float radius, const float source_to_detector,
+                              const int nviews, const float slen, const int nbins);
+
 // C++ interface
 
 #define CHECK_CUDA(x) TORCH_CHECK(x.device().is_cuda(), #x " must be a CUDA tensor")
@@ -43,5 +48,5 @@ torch::Tensor circularFanbeamBackProjectionPixelDriven(const torch::Tensor sinog
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("circularFanbeamProjection", &circularFanbeamProjection, "Fanbeam Forward Projection");
   m.def("circularFanbeamBackProjection", &circularFanbeamBackProjection, "Fanbeam Back Projection");
-  m.def("circularFanbeamBackProjectionPixelDriven", &circularFanbeamBackProjection, "Fanbeam Back Projection, Pixel-driven");
+  m.def("circularFanbeamBackProjectionPixelDriven", &circularFanbeamBackProjectionPixelDriven, "Fanbeam Back Projection, Pixel-driven");
 }

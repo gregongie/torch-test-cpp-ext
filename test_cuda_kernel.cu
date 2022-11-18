@@ -162,7 +162,7 @@ __global__ void backprojection_view_kernel(
   const float eux = -std::sin(s);
   const float euy =  std::cos(s);
 
-  const float fov_radius2 = fov_radius*fov_radius
+  const float fov_radius2 = fov_radius*fov_radius; //used to set image mask
 
   for (int uindex = 0; uindex < nbins; uindex++){
     auto sinoval = sinogram[sindex][uindex];
@@ -188,7 +188,6 @@ __global__ void backprojection_view_kernel(
           float x = xl + dx*(ix + 1.0);
           float yIntercept=ysource+slope*(x-xsource);
           int iy = static_cast<int>(std::floor((yIntercept-y0)/dy));
-
           float pix_x = x0 + dx*(ix+0.5); //used to set mask
           float pix_y = y0 + dy*(iy+0.5); //used to set mask
             if (iy == iyOld){ // if true, ray stays in the same pixel for this x-layer
