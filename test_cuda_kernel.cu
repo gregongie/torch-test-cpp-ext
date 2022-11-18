@@ -126,8 +126,120 @@ __global__ void projection_view_kernel(
  }
 }
 
-// computes backprojetion over one view
+// computes one backprojection view
 __global__ void backprojection_view_kernel(
+                    const torch::PackedTensorAccessor32<float,2> image,
+                    torch::PackedTensorAccessor32<float,2> sinogram,
+                    const float dx,
+                    const float dy,
+                    const float x0,
+                    const float y0,
+                    const float fanangle2,
+                    const float detectorlength,
+                    const float u0,
+                    const float du,
+                    const float ds,
+                    const float radius,
+                    const float source_to_detector,
+                    const int nbins){
+
+  const int nx = image.size(0);
+  const int ny = image.size(1);
+
+  const int sindex = threadIdx.x;
+  float s = sindex*ds;
+
+  // location of the source
+  float xsource = radius*std::cos(s);
+  float ysource = radius*std::sin(s);
+
+  // detector center
+  float xDetCenter = (radius - source_to_detector)*std::cos(s);
+  float yDetCenter = (radius - source_to_detector)*std::sin(s);
+
+  // unit vector in the direction of the detector line
+  float eux = -std::sin(s);
+  float euy =  std::cos(s);
+
+  for (int uindex = 0; uindex < nbins; uindex++){
+    auto sinoval = sinogram[sindex][uindex];
+    float u = u0+(uindex+0.5)*du;
+    float xbin = xDetCenter + eux*u;
+    float ybin = yDetCenter + euy*u;
+
+    float xl=x0;
+    float yl=y0;
+
+    float xdiff=xbin-xsource;
+    float ydiff=ybin-ysource;
+    float xad=std::abs(xdiff)*dy;
+    float yad=std::abs(ydiff)*dx;
+
+    if (xad>yad){   // loop through x-layers of image if xad>yad. This ensures ray hits only one or two pixels per layer
+       float slope=ydiff/xdiff;
+       float travPixlen=dx*std::sqrt(1.0+slope*slope);
+       float yIntOld=ysource + slope*(xl-xsource);
+       int iyOld = static_cast<int>(std::floor((yIntOld-y0)/dy));
+       for (int ix = 0; ix < nx; ix++){
+          float x=xl+dx*(ix + 1.0);
+          float yIntercept=ysource+slope*(x-xsource);
+          int iy = static_cast<int>(std::floor((yIntercept-y0)/dy));
+          if (iy == iyOld){ // if true, ray stays in the same pixel for this x-layer
+             if ((iy >= 0) && (iy < ny)){
+                atomicAdd(&image[ix][iy],sinoval*travPixlen);
+              }
+          } else {    // else case is if ray hits two pixels for this x-layer
+             float yMid = dy*std::max(iy,iyOld)+yl;
+             float ydist1 = std::abs(yMid-yIntOld);
+             float ydist2 = std::abs(yIntercept-yMid);
+             float frac1 = ydist1/(ydist1+ydist2);
+             float frac2 = 1.0-frac1;
+             if ((iyOld >= 0) && (iyOld < ny)){
+                atomicAdd(&image[ix][iyOld],frac1*sinoval*travPixlen);
+              }
+             if ((iy >= 0) && (iy < ny)) {
+                atomicAdd(&image[ix][iy],frac2*sinoval*travPixlen);
+              }
+          }
+          iyOld=iy;
+          yIntOld=yIntercept;
+        }
+    } else { //loop through y-layers of image if xad<=yad
+       float slopeinv=xdiff/ydiff;
+       float travPixlen=dy*std::sqrt(1.0+slopeinv*slopeinv);
+       float xIntOld=xsource+slopeinv*(yl-ysource);
+       int ixOld = static_cast<int>(std::floor((xIntOld-x0)/dx));
+       for (int iy = 0; iy < ny; iy++){
+          float y = yl + dy*(iy + 1.0);
+          float xIntercept = xsource+slopeinv*(y-ysource);
+          int ix = static_cast<int>(std::floor((xIntercept-x0)/dx));
+          if (ix == ixOld){ // if true, ray stays in the same pixel for this y-layer
+             if ((ix >= 0) && (ix < nx)) {
+                atomicAdd(&image[ix][iy],sinoval*travPixlen);
+              }
+          } else { // else case is if ray hits two pixels for this y-layer
+             float xMid = dx*std::max(ix,ixOld)+xl;
+             float xdist1 = std::abs(xMid-xIntOld);
+             float xdist2 = std::abs(xIntercept-xMid);
+             float frac1 = xdist1/(xdist1+xdist2);
+             float frac2=1.0-frac1;
+             if ((ixOld >= 0) && (ixOld < nx)){
+                atomicAdd(&image[ixOld][iy],frac1*sinoval*travPixlen);
+              }
+             if ((ix >= 0) && (ix < nx)){
+                atomicAdd(&image[ix][iy],frac2*sinoval*travPixlen);
+              }
+          }
+          ixOld = ix;
+          xIntOld = xIntercept;
+       }
+     }
+   } // end uindex for loop
+
+}
+
+// computes pixel-driven backprojetion over one view
+__global__ void backprojection_pix_view_kernel(
                     torch::PackedTensorAccessor32<float,2> image,
                     const torch::PackedTensorAccessor32<float,2> sinogram,
                     const float dx,
@@ -249,7 +361,52 @@ torch::Tensor circularFanbeamProjection_cuda(const torch::Tensor image, const in
     return sinogram;
 }
 
+// exact matrix transpose of circularFanbeamProjection
 torch::Tensor circularFanbeamBackProjection_cuda(const torch::Tensor sinogram, const int nx, const int ny,
+                              const float ximageside, const float yimageside,
+                              const float radius, const float source_to_detector,
+                              const int nviews, const float slen, const int nbins) {
+   const float dx = ximageside/nx;
+   const float dy = yimageside/ny;
+   const float x0 = -ximageside/2.0;
+   const float y0 = -yimageside/2.0;
+
+   // compute length of detector so that it views the inscribed FOV of the image array
+   const float fanangle2 = std::asin((ximageside/2.0)/radius);  //This only works for ximageside = yimageside
+   const float detectorlength = 2.0*std::tan(fanangle2)*source_to_detector;
+   const float u0 = -detectorlength/2.0;
+
+   const float du = detectorlength/nbins;
+   const float ds = slen/nviews;
+
+   const auto options = torch::TensorOptions().device(torch::kCUDA);
+   torch::Tensor image = torch::zeros({nx, ny}, options); //initialize image
+   auto image_a = image.packed_accessor32<float,2>(); //accessor for updating values of image
+   const auto sinogram_a = sinogram.packed_accessor32<float,2>(); //accessor for accessing values of sinogram
+
+   const int threads = 512; //one per view?
+   const int blocks = 1; //match to batch size in future?
+
+   backprojection_view_kernel<<<blocks, threads>>>(image_a,
+                                               sinogram_a,
+                                               dx,
+                                               dy,
+                                               x0,
+                                               y0,
+                                               fanangle2,
+                                               detectorlength,
+                                               u0,
+                                               du,
+                                               ds,
+                                               radius,
+                                               source_to_detector,
+                                               nbins);
+
+    return image;
+}
+
+
+torch::Tensor circularFanbeamBackProjectionPixelDriven_cuda(const torch::Tensor sinogram, const int nx, const int ny,
                               const float ximageside, const float yimageside,
                               const float radius, const float source_to_detector,
                               const int nviews, const float slen, const int nbins) {
@@ -280,7 +437,7 @@ torch::Tensor circularFanbeamBackProjection_cuda(const torch::Tensor sinogram, c
    // const dim3 blocks((512 + threads - 1) / threads, 1);
    const int blocks = 1; //match to batch size in future?
 
-   backprojection_view_kernel<<<blocks, threads>>>(image_a,
+   backprojection_pix_view_kernel<<<blocks, threads>>>(image_a,
                                                    sinogram_a,
                                                    dx,
                                                    dy,
