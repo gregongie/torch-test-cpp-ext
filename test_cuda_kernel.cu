@@ -183,13 +183,13 @@ __global__ void backprojection_view_kernel(
        float travPixlen=dx*std::sqrt(1.0+slope*slope);
        float yIntOld=ysource + slope*(xl-xsource);
        int iyOld = static_cast<int>(std::floor((yIntOld-y0)/dy));
-       float pix_y_old = y0 + dy*(iyOld+0.5); // used to set mask
        for (int ix = 0; ix < nx; ix++){
           float x = xl + dx*(ix + 1.0);
           float yIntercept=ysource+slope*(x-xsource);
           int iy = static_cast<int>(std::floor((yIntercept-y0)/dy));
           float pix_x = x0 + dx*(ix+0.5); //used to set mask
           float pix_y = y0 + dy*(iy+0.5); //used to set mask
+          float pix_y_old = y0 + dy*(iyOld+0.5); // used to set mask
             if (iy == iyOld){ // if true, ray stays in the same pixel for this x-layer
              if ((pix_x*pix_x + pix_y*pix_y <= fov_radius2) && (iy >= 0) && (iy < ny)){
                 atomicAdd(&image[ix][iy],sinoval*travPixlen);
@@ -215,13 +215,13 @@ __global__ void backprojection_view_kernel(
        float travPixlen=dy*std::sqrt(1.0+slopeinv*slopeinv);
        float xIntOld=xsource+slopeinv*(yl-ysource);
        int ixOld = static_cast<int>(std::floor((xIntOld-x0)/dx));
-       float pix_x_old = x0 + dx*(ixOld+0.5); // used to set mask
        for (int iy = 0; iy < ny; iy++){
           float y = yl + dy*(iy + 1.0);
           float xIntercept = xsource+slopeinv*(y-ysource);
           int ix = static_cast<int>(std::floor((xIntercept-x0)/dx));
           float pix_x = x0 + dx*(ix+0.5);
           float pix_y = y0 + dy*(iy+0.5);
+          float pix_x_old = x0 + dx*(ixOld+0.5); // used to set mask
           if (ix == ixOld){ // if true, ray stays in the same pixel for this y-layer
              if ((ix >= 0) && (ix < nx) && (pix_x*pix_x + pix_y*pix_y <= fov_radius2)) {
                 atomicAdd(&image[ix][iy],sinoval*travPixlen);
