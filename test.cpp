@@ -329,6 +329,6 @@ torch::Tensor circularFanbeamBackProjectionPixelDriven(const torch::Tensor sinog
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("circularFanbeamProjection", &circularFanbeamProjection, "Fanbeam Forward Projection");
-  m.def("circularFanbeamBackProjection", &circularFanbeamBackProjection, "Fanbeam Back Projection");
-  m.def("circularFanbeamBackProjectionPixelDriven", &circularFanbeamBackProjection, "Fanbeam Back Projection, Pixel-driven");
+  m.def("circularFanbeamBackProjection", &circularFanbeamBackProjection, "Fanbeam Backprojection");
+  m.def("circularFanbeamBackProjectionPixelDriven", &circularFanbeamBackProjectionPixelDriven, "Fanbeam Backprojection, Pixel-driven");
 }
