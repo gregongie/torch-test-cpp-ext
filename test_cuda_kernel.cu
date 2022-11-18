@@ -128,8 +128,8 @@ __global__ void projection_view_kernel(
 
 // computes one backprojection view
 __global__ void backprojection_view_kernel(
-                    const torch::PackedTensorAccessor32<float,2> image,
-                    torch::PackedTensorAccessor32<float,2> sinogram,
+                    torch::PackedTensorAccessor32<float,2> image,
+                    const torch::PackedTensorAccessor32<float,2> sinogram,
                     const float dx,
                     const float dy,
                     const float x0,
