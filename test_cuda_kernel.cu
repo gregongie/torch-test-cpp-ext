@@ -328,7 +328,7 @@ __global__ void backprojection_pix_view_kernel(
 
 }
 
-torch::Tensor circularFanbeamProjection_cuda(const torch::Tensor image, torch::Tensor sinogram, const int nx, const int ny, const float ximageside, const float yimageside,
+torch::Tensor circularFanbeamProjection_cuda(const torch::Tensor image, const int nx, const int ny, const float ximageside, const float yimageside,
                               const float radius, const float source_to_detector,
                               const int nviews, const float slen, const int nbins) {
     const float dx = ximageside/nx;
@@ -345,10 +345,11 @@ torch::Tensor circularFanbeamProjection_cuda(const torch::Tensor image, torch::T
     const float ds = slen/nviews;
 
     const auto image_a = image.packed_accessor32<float,3,torch::RestrictPtrTraits>();
-    // const auto options = torch::TensorOptions().device(torch::kCUDA);
-    // torch::Tensor sinogram = torch::zeros({batch_size, nviews, nbins}, options);
-    auto sinogram_a = sinogram.packed_accessor32<float,3,torch::RestrictPtrTraits>();
     const int batch_size = image_a.size(0); //batch_size
+    
+    const auto options = torch::TensorOptions().device(torch::kCUDA);
+    torch::Tensor sinogram = torch::zeros({batch_size, nviews, nbins}, options);
+    auto sinogram_a = sinogram.packed_accessor32<float,3,torch::RestrictPtrTraits>();
 
     const int threads = nviews; //one per view, max 1024 -- todo: add input validation
     const int blocks = batch_size; //match to batch size
