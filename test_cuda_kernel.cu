@@ -22,8 +22,8 @@ __global__ void projection_view_kernel(
                     const float source_to_detector,
                     const int nbins){
 
-  const int nx = image.size(2);
-  const int ny = image.size(3);
+  const int nx = image.size(1);
+  const int ny = image.size(2);
 
   const int ib = blockIdx.x;
   const int sindex = threadIdx.x;
@@ -142,8 +142,8 @@ __global__ void backprojection_view_kernel(
                     const int nbins,
                     const float fov_radius){
 
-  const int nx = image.size(2);
-  const int ny = image.size(3);
+  const int nx = image.size(1);
+  const int ny = image.size(2);
 
   const int ib = blockIdx.x;
   const int sindex = threadIdx.x;
@@ -266,8 +266,8 @@ __global__ void backprojection_pix_view_kernel(
                     const float fov_radius,
                     const float pi){
 
-                    const int nx = image.size(0);
-                    const int ny = image.size(1);
+                    const int nx = image.size(1);
+                    const int ny = image.size(2);
 
                     const int sindex = threadIdx.x;
                     const int ib = blockIdx.x;
