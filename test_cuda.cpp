@@ -1,11 +1,11 @@
 #include <torch/extension.h>
 
-torch::Tensor circularFanbeamProjection_cuda(const torch::Tensor *image, torch::Tensor *sinogram, const int nx, const int ny,
+torch::Tensor circularFanbeamProjection_cuda(const torch::Tensor* image, torch::Tensor* sinogram, const int nx, const int ny,
                               const float ximageside, const float yimageside,
                               const float radius, const float source_to_detector,
                               const int nviews, const float slen, const int nbins);
 
-torch::Tensor circularFanbeamBackProjection_cuda(torch::Tensor *image, conat torch::Tensor *sinogram, const int nx, const int ny,
+torch::Tensor circularFanbeamBackProjection_cuda(torch::Tensor* image, const torch::Tensor* sinogram, const int nx, const int ny,
                               const float ximageside, const float yimageside,
                               const float radius, const float source_to_detector,
                               const int nviews, const float slen, const int nbins);
