@@ -328,8 +328,7 @@ __global__ void backprojection_pix_view_kernel(
 
 }
 
-template<typename T>
-void circularFanbeamProjection_cuda(const T *image, T *sinogram, const int nx, const int ny, const float ximageside, const float yimageside,
+void circularFanbeamProjection_cuda(torch::Tensor *image, const torch::Tensor *sinogram, const int nx, const int ny, const float ximageside, const float yimageside,
                               const float radius, const float source_to_detector,
                               const int nviews, const float slen, const int nbins) {
     const float dx = ximageside/nx;
@@ -345,10 +344,10 @@ void circularFanbeamProjection_cuda(const T *image, T *sinogram, const int nx, c
     const float du = detectorlength/nbins;
     const float ds = slen/nviews;
 
-    const auto image_a = image.packed_accessor32<float,3,torch::RestrictPtrTraits>();
+    const torch::PackedTensorAccessor32 image_a = image.packed_accessor32<float,3,torch::RestrictPtrTraits>();
     const int batch_size = image_a.size(0); //batch_size
 
-    auto sinogram_a = sinogram.packed_accessor32<float,3,torch::RestrictPtrTraits>();
+    torch::PackedTensorAccessor32 sinogram_a = sinogram.packed_accessor32<float,3,torch::RestrictPtrTraits>();
 
     const int threads = nviews; //one per view, max 1024 -- todo: add input validation
     const int blocks = batch_size; //match to batch size
@@ -371,8 +370,7 @@ void circularFanbeamProjection_cuda(const T *image, T *sinogram, const int nx, c
 }
 
 // exact matrix transpose of circularFanbeamProjection
-template<typename T>
-void circularFanbeamBackProjection_cuda(T *image, const T *sinogram, const int nx, const int ny,
+void circularFanbeamBackProjection_cuda(torch::Tensor *image, const torch::Tensor *sinogram, const int nx, const int ny,
                               const float ximageside, const float yimageside,
                               const float radius, const float source_to_detector,
                               const int nviews, const float slen, const int nbins) {
@@ -391,9 +389,9 @@ void circularFanbeamBackProjection_cuda(T *image, const T *sinogram, const int n
 
    const float fov_radius = ximageside/2.0;
 
-   const auto sinogram_a = sinogram.packed_accessor32<float,3,torch::RestrictPtrTraits>(); //accessor for accessing values of sinogram
+   const torch::PackedTensorAccessor32 sinogram_a = sinogram.packed_accessor32<float,3,torch::RestrictPtrTraits>(); //accessor for accessing values of sinogram
    const int batch_size = sinogram_a.size(0);
-   auto image_a = image.packed_accessor32<float,3,torch::RestrictPtrTraits>(); //accessor for updating values of image
+   torch::PackedTensorAccessor32 image_a = image.packed_accessor32<float,3,torch::RestrictPtrTraits>(); //accessor for updating values of image
 
    const int threads = nviews; //one per view
    const int blocks =  batch_size;//match to batch size
