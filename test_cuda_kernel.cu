@@ -344,10 +344,9 @@ void circularFanbeamProjection_cuda(torch::Tensor* image, const torch::Tensor* s
     const float du = detectorlength/nbins;
     const float ds = slen/nviews;
 
-    const torch::PackedTensorAccessor32 image_a = image.packed_accessor32<float,3,torch::RestrictPtrTraits>();
+    const auto image_a = image.packed_accessor32<float,3,torch::RestrictPtrTraits>();
     const int batch_size = image_a.size(0); //batch_size
-
-    torch::PackedTensorAccessor32 sinogram_a = sinogram.packed_accessor32<float,3,torch::RestrictPtrTraits>();
+    auto sinogram_a = sinogram.packed_accessor32<float,3,torch::RestrictPtrTraits>();
 
     const int threads = nviews; //one per view, max 1024 -- todo: add input validation
     const int blocks = batch_size; //match to batch size
@@ -389,12 +388,14 @@ void circularFanbeamBackProjection_cuda(torch::Tensor* image, const torch::Tenso
 
    const float fov_radius = ximageside/2.0;
 
-   const torch::PackedTensorAccessor32 sinogram_a = sinogram.packed_accessor32<float,3,torch::RestrictPtrTraits>(); //accessor for accessing values of sinogram
-   const int batch_size = sinogram_a.size(0);
-   torch::PackedTensorAccessor32 image_a = image.packed_accessor32<float,3,torch::RestrictPtrTraits>(); //accessor for updating values of image
-
    const int threads = nviews; //one per view
-   const int blocks =  batch_size;//match to batch size
+
+   const auto sinogram_a = sinogram.packed_accessor32<float,3,torch::RestrictPtrTraits>(); //accessor for accessing values of sinogram
+   auto image_a = image.packed_accessor32<float,3,torch::RestrictPtrTraits>(); //accessor for updating values of image
+   const int blocks =  image_a.size(0);//match to batch size
+
+   const int threads = nviews; //one per view, max 1024 -- todo: add input validation
+   const int blocks = batch_size; //match to batch size
 
    backprojection_view_kernel<<<blocks, threads>>>(image_a,
                                                sinogram_a,
