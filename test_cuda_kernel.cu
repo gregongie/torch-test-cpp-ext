@@ -369,10 +369,11 @@ torch::Tensor circularFanbeamProjection_cuda(const torch::Tensor image, const in
                                                 source_to_detector,
                                                 nbins);
 
+    return sinogram;
 }
 
 // exact matrix transpose of circularFanbeamProjection
-void circularFanbeamBackProjection_cuda(const torch::Tensor sinogram, const int nx, const int ny,
+torch::Tensor circularFanbeamBackProjection_cuda(const torch::Tensor sinogram, const int nx, const int ny,
                               const float ximageside, const float yimageside,
                               const float radius, const float source_to_detector,
                               const int nviews, const float slen, const int nbins) {
