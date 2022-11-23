@@ -397,7 +397,7 @@ torch::Tensor circularFanbeamBackProjection_cuda(const torch::Tensor sinogram, c
 
    const auto options = torch::TensorOptions().dtype(sinogram.dtype()).device(sinogram.device());
    auto image = torch::zeros({batch_size, nx, ny}, options);
-   auto image_a = sinogram.packed_accessor32<float,3,torch::RestrictPtrTraits>();
+   auto image_a = image.packed_accessor32<float,3,torch::RestrictPtrTraits>();
 
    const int threads = nviews; //one per view, max 1024 -- todo: add input validation
    const int blocks = batch_size; //match to batch size
