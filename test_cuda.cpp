@@ -1,11 +1,11 @@
 #include <torch/extension.h>
 
-torch::Tensor circularFanbeamProjection_cuda(const torch::Tensor image, const int nx, const int ny,
+torch::Tensor circularFanbeamProjection_cuda(const torch::Tensor *image, torch::Tensor *sinogram, const int nx, const int ny,
                               const float ximageside, const float yimageside,
                               const float radius, const float source_to_detector,
                               const int nviews, const float slen, const int nbins);
 
-torch::Tensor circularFanbeamBackProjection_cuda(const torch::Tensor sinogram, const int nx, const int ny,
+torch::Tensor circularFanbeamBackProjection_cuda(torch::Tensor *image, const torch::Tensor *sinogram, const int nx, const int ny,
                               const float ximageside, const float yimageside,
                               const float radius, const float source_to_detector,
                               const int nviews, const float slen, const int nbins);
@@ -25,15 +25,27 @@ torch::Tensor circularFanbeamProjection(const torch::Tensor image, const int nx,
                               const float radius, const float source_to_detector,
                               const int nviews, const float slen, const int nbins) {
   CHECK_INPUT(image);
-  return circularFanbeamProjection_cuda(image, nx, ny, ximageside, yimageside,
+
+  // allocate output sinogram tensor
+  auto options = torch::TensorOptions().dtype(image.dtype()).device(image.device());
+  auto sinogram = torch::zeros({image.size(0), nviews, nbins}, options);
+
+  circularFanbeamProjection_cuda(image.data_ptr<float>(), sinogram.data_ptr<float>(), nx, ny, ximageside, yimageside,
     radius, source_to_detector, nviews, slen, nbins);
+
+  return sinogram;
 }
 
 torch::Tensor circularFanbeamBackProjection(const torch::Tensor sinogram, const int nx, const int ny, const float ximageside, const float yimageside,
                               const float radius, const float source_to_detector,
                               const int nviews, const float slen, const int nbins) {
   CHECK_INPUT(sinogram);
-  return circularFanbeamBackProjection_cuda(sinogram, nx, ny, ximageside, yimageside,
+
+  // allocate output sinogram tensor
+  auto options = torch::TensorOptions().dtype(sinogram.dtype()).device(sinogram.device());
+  auto image = torch::zeros({sinogram.size(0), nx, ny}, options);
+
+  return circularFanbeamBackProjection_cuda(image.data_ptr<float>(), sinogram.data_ptr<float>(), nx, ny, ximageside, yimageside,
     radius, source_to_detector, nviews, slen, nbins);
 }
 
