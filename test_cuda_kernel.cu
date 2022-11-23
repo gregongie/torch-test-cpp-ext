@@ -328,7 +328,8 @@ __global__ void backprojection_pix_view_kernel(
 
 }
 
-void circularFanbeamProjection_cuda(const torch::Tensor *image, torch::Tensor *sinogram, const int nx, const int ny, const float ximageside, const float yimageside,
+template<typename T>
+void circularFanbeamProjection_cuda(const T *image, T *sinogram, const int nx, const int ny, const float ximageside, const float yimageside,
                               const float radius, const float source_to_detector,
                               const int nviews, const float slen, const int nbins) {
     const float dx = ximageside/nx;
@@ -370,7 +371,8 @@ void circularFanbeamProjection_cuda(const torch::Tensor *image, torch::Tensor *s
 }
 
 // exact matrix transpose of circularFanbeamProjection
-void circularFanbeamBackProjection_cuda(torch::Tensor *image, const torch::Tensor *sinogram, const int nx, const int ny,
+template<typename T>
+void circularFanbeamBackProjection_cuda(T *image, const T *sinogram, const int nx, const int ny,
                               const float ximageside, const float yimageside,
                               const float radius, const float source_to_detector,
                               const int nviews, const float slen, const int nbins) {
