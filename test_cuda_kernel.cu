@@ -328,7 +328,7 @@ __global__ void backprojection_pix_view_kernel(
 
 }
 
-void circularFanbeamProjection_cuda(torch::Tensor* image, const torch::Tensor* sinogram, const int nx, const int ny, const float ximageside, const float yimageside,
+torch::Tensor circularFanbeamProjection_cuda(const torch::Tensor image, const int nx, const int ny, const float ximageside, const float yimageside,
                               const float radius, const float source_to_detector,
                               const int nviews, const float slen, const int nbins) {
     const float dx = ximageside/nx;
@@ -346,6 +346,9 @@ void circularFanbeamProjection_cuda(torch::Tensor* image, const torch::Tensor* s
 
     const auto image_a = image.packed_accessor32<float,3,torch::RestrictPtrTraits>();
     const int batch_size = image_a.size(0); //batch_size
+
+    const auto options = torch::TensorOptions().dtype(image.dtype()).device(image.device());
+    auto sinogram = torch::zeros({batch_size, nviews, nbins}, options);
     auto sinogram_a = sinogram.packed_accessor32<float,3,torch::RestrictPtrTraits>();
 
     const int threads = nviews; //one per view, max 1024 -- todo: add input validation
@@ -369,7 +372,7 @@ void circularFanbeamProjection_cuda(torch::Tensor* image, const torch::Tensor* s
 }
 
 // exact matrix transpose of circularFanbeamProjection
-void circularFanbeamBackProjection_cuda(torch::Tensor* image, const torch::Tensor* sinogram, const int nx, const int ny,
+void circularFanbeamBackProjection_cuda(const torch::Tensor sinogram, const int nx, const int ny,
                               const float ximageside, const float yimageside,
                               const float radius, const float source_to_detector,
                               const int nviews, const float slen, const int nbins) {
@@ -388,11 +391,12 @@ void circularFanbeamBackProjection_cuda(torch::Tensor* image, const torch::Tenso
 
    const float fov_radius = ximageside/2.0;
 
-   const int threads = nviews; //one per view
+   const auto sinogram_a = sinogram.packed_accessor32<float,3,torch::RestrictPtrTraits>();
+   const int batch_size = sinogram_a.size(0); //batch_size
 
-   const auto sinogram_a = sinogram.packed_accessor32<float,3,torch::RestrictPtrTraits>(); //accessor for accessing values of sinogram
-   auto image_a = image.packed_accessor32<float,3,torch::RestrictPtrTraits>(); //accessor for updating values of image
-   const int blocks =  image_a.size(0);//match to batch size
+   const auto options = torch::TensorOptions().dtype(sinogram.dtype()).device(sinogram.device());
+   auto image = torch::zeros({batch_size, nx, ny}, options);
+   auto image_a = sinogram.packed_accessor32<float,3,torch::RestrictPtrTraits>();
 
    const int threads = nviews; //one per view, max 1024 -- todo: add input validation
    const int blocks = batch_size; //match to batch size
