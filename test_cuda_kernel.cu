@@ -25,6 +25,7 @@ __global__ void projection_view_kernel(
                     const float radius,
                     const float source_to_detector,
                     const int nbins,
+                    const int nviews,
                     const int nx,
                     const int ny){
 
@@ -386,6 +387,7 @@ torch::Tensor circularFanbeamProjection_cuda(const torch::Tensor image, const in
                                                 radius,
                                                 source_to_detector,
                                                 nbins,
+                                                nviews,
                                                 nx,
                                                 ny);
 
