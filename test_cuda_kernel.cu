@@ -588,7 +588,6 @@ torch::Tensor circularFanbeamWPDBackProjection_cuda(const torch::Tensor sinogram
                               const float ximageside, const float yimageside,
                               const float radius, const float source_to_detector,
                               const int nviews, const float slen, const int nbins) {
-   const int batch_size = sinogram.size(0);
    const float dx = ximageside/nx;
    const float dy = yimageside/ny;
    const float x0 = -ximageside/2.0;
