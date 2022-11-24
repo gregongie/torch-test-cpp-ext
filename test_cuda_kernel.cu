@@ -85,7 +85,7 @@ __global__ void projection_view_kernel(
                raysum += travPixlen*image[ib][ix][iy];
             }
          } else {    // else case is if ray hits two pixels for this x-layer
-            auto yMid=dy*std::max(iy,iyOld)+yl;
+            auto yMid=dy*max(iy,iyOld)+yl;
             auto ydist1=abs(yMid-yIntOld);
             auto ydist2=abs(yIntercept-yMid);
             auto frac1=ydist1/(ydist1+ydist2);
@@ -116,7 +116,7 @@ __global__ void projection_view_kernel(
                raysum += travPixlen*image[ib][ix][iy];
              }
          } else {  // else case is if ray hits two pixels for this y-layer
-            auto xMid=dx*std::max(ix,ixOld)+xl;
+            auto xMid=dx*max(ix,ixOld)+xl;
             auto xdist1=abs(xMid-xIntOld);
             auto xdist2=abs(xIntercept-xMid);
             auto frac1=xdist1/(xdist1+xdist2);
@@ -151,33 +151,38 @@ __global__ void backprojection_view_kernel(
                     const float ds,
                     const float radius,
                     const float source_to_detector,
+                    const float fov_radius,
                     const int nbins,
-                    const float fov_radius){
+                    const int nviews,
+                    const int nx,
+                    const int ny){
 
-  const int nx = image.size(1);
-  const int ny = image.size(2);
+  const int uindex = blockIdx.x * blockDim.x + threadIdx.x; //detector index
+  const int sindex = blockIdx.y * blockDim.y + threadIdx.y; //view index
+  const int ib = blockIdx.z; //batch index
+  // const int ib = blockIdx.x;
+  // const int sindex = threadIdx.x;
 
-  const int ib = blockIdx.x;
-  const int sindex = threadIdx.x;
+  //compute backprojection for a single ray
+  if ((uindex < nbins) && (sindex < nviews)) {
+    const auto sinoval = sinogram[ib][sindex][uindex];
 
-  const float s = sindex*ds;
+    const float s = sindex*ds;
 
-  // location of the source
-  const float xsource = radius*std::cos(s);
-  const float ysource = radius*std::sin(s);
+    // location of the source
+    const float xsource = radius*cos(s);
+    const float ysource = radius*sin(s);
 
-  // detector center
-  const float xDetCenter = (radius - source_to_detector)*std::cos(s);
-  const float yDetCenter = (radius - source_to_detector)*std::sin(s);
+    // detector center
+    const float xDetCenter = (radius - source_to_detector)*cos(s);
+    const float yDetCenter = (radius - source_to_detector)*sin(s);
 
-  // unit vector in the direction of the detector line
-  const float eux = -std::sin(s);
-  const float euy =  std::cos(s);
+    // unit vector in the direction of the detector line
+    const float eux = -sin(s);
+    const float euy =  cos(s);
 
-  const float fov_radius2 = fov_radius*fov_radius; //used to set image mask
+    const float fov_radius2 = fov_radius*fov_radius; //used to set image mask
 
-  for (int uindex = 0; uindex < nbins; uindex++){
-    auto sinoval = sinogram[ib][sindex][uindex];
     float u = u0+(uindex+0.5)*du;
     float xbin = xDetCenter + eux*u;
     float ybin = yDetCenter + euy*u;
@@ -187,18 +192,18 @@ __global__ void backprojection_view_kernel(
 
     float xdiff=xbin-xsource;
     float ydiff=ybin-ysource;
-    float xad=std::abs(xdiff)*dy;
-    float yad=std::abs(ydiff)*dx;
+    float xad=abs(xdiff)*dy;
+    float yad=abs(ydiff)*dx;
 
     if (xad>yad){   // loop through x-layers of image if xad>yad. This ensures ray hits only one or two pixels per layer
        float slope=ydiff/xdiff;
-       float travPixlen=dx*std::sqrt(1.0+slope*slope);
+       float travPixlen=dx*sqrt(1.0+slope*slope);
        float yIntOld=ysource + slope*(xl-xsource);
-       int iyOld = static_cast<int>(std::floor((yIntOld-y0)/dy));
+       int iyOld = static_cast<int>(floor((yIntOld-y0)/dy));
        for (int ix = 0; ix < nx; ix++){
           float x = xl + dx*(ix + 1.0);
           float yIntercept=ysource+slope*(x-xsource);
-          int iy = static_cast<int>(std::floor((yIntercept-y0)/dy));
+          int iy = static_cast<int>(floor((yIntercept-y0)/dy));
           float pix_x = x0 + dx*(ix+0.5); //used to set mask
           float pix_y = y0 + dy*(iy+0.5); //used to set mask
           float pix_y_old = y0 + dy*(iyOld+0.5); // used to set mask
@@ -208,9 +213,9 @@ __global__ void backprojection_view_kernel(
                 // image[ib][ix][iy] += sinoval*travPixlen;
               }
           } else {    // else case is if ray hits two pixels for this x-layer
-             float yMid = dy*std::max(iy,iyOld)+yl;
-             float ydist1 = std::abs(yMid-yIntOld);
-             float ydist2 = std::abs(yIntercept-yMid);
+             float yMid = dy*max(iy,iyOld)+yl;
+             float ydist1 = abs(yMid-yIntOld);
+             float ydist2 = abs(yIntercept-yMid);
              float frac1 = ydist1/(ydist1+ydist2);
              float frac2 = 1.0-frac1;
              if ((iyOld >= 0) && (iyOld < ny) && (pix_x*pix_x + pix_y_old*pix_y_old <= fov_radius2)){
@@ -227,13 +232,13 @@ __global__ void backprojection_view_kernel(
         }
     } else { //loop through y-layers of image if xad<=yad
        float slopeinv=xdiff/ydiff;
-       float travPixlen=dy*std::sqrt(1.0+slopeinv*slopeinv);
+       float travPixlen=dy*sqrt(1.0+slopeinv*slopeinv);
        float xIntOld=xsource+slopeinv*(yl-ysource);
-       int ixOld = static_cast<int>(std::floor((xIntOld-x0)/dx));
+       int ixOld = static_cast<int>(floor((xIntOld-x0)/dx));
        for (int iy = 0; iy < ny; iy++){
           float y = yl + dy*(iy + 1.0);
           float xIntercept = xsource+slopeinv*(y-ysource);
-          int ix = static_cast<int>(std::floor((xIntercept-x0)/dx));
+          int ix = static_cast<int>(floor((xIntercept-x0)/dx));
           float pix_x = x0 + dx*(ix+0.5);
           float pix_y = y0 + dy*(iy+0.5);
           float pix_x_old = x0 + dx*(ixOld+0.5); // used to set mask
@@ -243,9 +248,9 @@ __global__ void backprojection_view_kernel(
                 // image[ib][ix][iy] += sinoval*travPixlen;
               }
           } else { // else case is if ray hits two pixels for this y-layer
-             float xMid = dx*std::max(ix,ixOld)+xl;
-             float xdist1 = std::abs(xMid-xIntOld);
-             float xdist2 = std::abs(xIntercept-xMid);
+             float xMid = dx*max(ix,ixOld)+xl;
+             float xdist1 = abs(xMid-xIntOld);
+             float xdist2 = abs(xIntercept-xMid);
              float frac1 = xdist1/(xdist1+xdist2);
              float frac2=1.0-frac1;
              if ((ixOld >= 0) && (ixOld < nx) && (pix_x_old*pix_x_old + pix_y*pix_y <= fov_radius2)){
@@ -421,10 +426,14 @@ torch::Tensor circularFanbeamBackProjection_cuda(const torch::Tensor sinogram, c
    auto image = torch::zeros({batch_size, nx, ny}, options);
    auto image_a = image.packed_accessor32<float,3,torch::RestrictPtrTraits>();
 
-   const int threads = nviews; //one per view, max 1024 -- todo: add input validation
-   const int blocks = batch_size; //match to batch size
+   // const int threads = nviews; //one per view, max 1024 -- todo: add input validation
+   // const int blocks = batch_size; //match to batch size
 
-   backprojection_view_kernel<<<blocks, threads>>>(image_a,
+   // parallize over rays, batches
+   dim3 block_dim(16, 16);
+   dim3 grid_dim(roundup_div(nbins, 16), roundup_div(nviews, 16), batch_size );
+
+   backprojection_view_kernel<<<grid_dim, block_dim>>>(image_a,
                                                sinogram_a,
                                                dx,
                                                dy,
@@ -437,8 +446,11 @@ torch::Tensor circularFanbeamBackProjection_cuda(const torch::Tensor sinogram, c
                                                ds,
                                                radius,
                                                source_to_detector,
+                                               fov_radius,
                                                nbins,
-                                               fov_radius);
+                                               nviews,
+                                               nx,
+                                               ny);
 
     return image;
 }
