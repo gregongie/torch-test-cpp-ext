@@ -10,7 +10,12 @@ torch::Tensor circularFanbeamBackProjection_cuda(const torch::Tensor sinogram, c
                               const float radius, const float source_to_detector,
                               const int nviews, const float slen, const int nbins);
 
-torch::Tensor circularFanbeamBackProjectionPixelDriven_cuda(const torch::Tensor sinogram, const int nx, const int ny,
+torch::Tensor circularFanbeamWPDProjection_cuda(const torch::Tensor sinogram, const int nx, const int ny,
+                              const float ximageside, const float yimageside,
+                              const float radius, const float source_to_detector,
+                              const int nviews, const float slen, const int nbins);
+
+torch::Tensor circularFanbeamWPDBackProjection_cuda(const torch::Tensor sinogram, const int nx, const int ny,
                               const float ximageside, const float yimageside,
                               const float radius, const float source_to_detector,
                               const int nviews, const float slen, const int nbins);
@@ -39,16 +44,25 @@ torch::Tensor circularFanbeamBackProjection(const torch::Tensor sinogram, const 
     radius, source_to_detector, nviews, slen, nbins);
 }
 
-torch::Tensor circularFanbeamBackProjectionPixelDriven(const torch::Tensor sinogram, const int nx, const int ny, const float ximageside, const float yimageside,
+torch::Tensor circularFanbeamWPDProjection(const torch::Tensor image, const int nx, const int ny, const float ximageside, const float yimageside,
+                              const float radius, const float source_to_detector,
+                              const int nviews, const float slen, const int nbins) {
+  CHECK_INPUT(image);
+  return circularFanbeamWPDProjection_cuda(image, nx, ny, ximageside, yimageside,
+    radius, source_to_detector, nviews, slen, nbins);
+}
+
+torch::Tensor circularFanbeamWPDBackProjection(const torch::Tensor sinogram, const int nx, const int ny, const float ximageside, const float yimageside,
                               const float radius, const float source_to_detector,
                               const int nviews, const float slen, const int nbins) {
   CHECK_INPUT(sinogram);
-  return circularFanbeamBackProjectionPixelDriven_cuda(sinogram, nx, ny, ximageside, yimageside,
+  return circularFanbeamWPDBackProjection_cuda(sinogram, nx, ny, ximageside, yimageside,
     radius, source_to_detector, nviews, slen, nbins);
 }
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("circularFanbeamProjection", &circularFanbeamProjection, "Fanbeam Forward Projection");
   m.def("circularFanbeamBackProjection", &circularFanbeamBackProjection, "Fanbeam Back Projection");
-  m.def("circularFanbeamBackProjectionPixelDriven", &circularFanbeamBackProjectionPixelDriven, "Fanbeam Back Projection, Pixel-driven");
+  m.def("circularFanbeamWPDProjection", &circularFanbeamWPDProjection, "Fanbeam Projection, Weighted, Pixel-driven");
+  m.def("circularFanbeamWPDBackProjection", &circularFanbeamWPDBackProjection, "Fanbeam Back Projection, Weighted, Pixel-driven");
 }
