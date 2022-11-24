@@ -192,7 +192,8 @@ __global__ void backprojection_view_kernel(
           float pix_y_old = y0 + dy*(iyOld+0.5); // used to set mask
             if (iy == iyOld){ // if true, ray stays in the same pixel for this x-layer
              if ((pix_x*pix_x + pix_y*pix_y <= fov_radius2) && (iy >= 0) && (iy < ny)){
-                atomicAdd(&image[ib][ix][iy],sinoval*travPixlen);
+                // atomicAdd(&image[ib][ix][iy],sinoval*travPixlen);
+                image[ib][ix][iy] += sinoval*travPixlen;
               }
           } else {    // else case is if ray hits two pixels for this x-layer
              float yMid = dy*std::max(iy,iyOld)+yl;
@@ -201,10 +202,12 @@ __global__ void backprojection_view_kernel(
              float frac1 = ydist1/(ydist1+ydist2);
              float frac2 = 1.0-frac1;
              if ((iyOld >= 0) && (iyOld < ny) && (pix_x*pix_x + pix_y_old*pix_y_old <= fov_radius2)){
-                atomicAdd(&image[ib][ix][iyOld],frac1*sinoval*travPixlen);
+                // atomicAdd(&image[ib][ix][iyOld],frac1*sinoval*travPixlen);
+                image[ib][ix][iyOld] += frac1*sinoval*travPixlen;
               }
              if ((iy >= 0) && (iy < ny) && (pix_x*pix_x + pix_y*pix_y <= fov_radius2)) {
-                atomicAdd(&image[ib][ix][iy],frac2*sinoval*travPixlen);
+                // atomicAdd(&image[ib][ix][iy],frac2*sinoval*travPixlen);
+                image[ib][ix][iy] += frac2*sinoval*travPixlen;
               }
           }
           iyOld=iy;
@@ -224,7 +227,8 @@ __global__ void backprojection_view_kernel(
           float pix_x_old = x0 + dx*(ixOld+0.5); // used to set mask
           if (ix == ixOld){ // if true, ray stays in the same pixel for this y-layer
              if ((ix >= 0) && (ix < nx) && (pix_x*pix_x + pix_y*pix_y <= fov_radius2)) {
-                atomicAdd(&image[ib][ix][iy],sinoval*travPixlen);
+                // atomicAdd(&image[ib][ix][iy],sinoval*travPixlen);
+                image[ib][ix][iy] += sinoval*travPixlen;
               }
           } else { // else case is if ray hits two pixels for this y-layer
              float xMid = dx*std::max(ix,ixOld)+xl;
@@ -233,10 +237,12 @@ __global__ void backprojection_view_kernel(
              float frac1 = xdist1/(xdist1+xdist2);
              float frac2=1.0-frac1;
              if ((ixOld >= 0) && (ixOld < nx) && (pix_x_old*pix_x_old + pix_y*pix_y <= fov_radius2)){
-                atomicAdd(&image[ib][ixOld][iy],frac1*sinoval*travPixlen);
+                // atomicAdd(&image[ib][ixOld][iy],frac1*sinoval*travPixlen);
+                image[ib][ixOld][iy] += frac1*sinoval*travPixlen;
               }
              if ((ix >= 0) && (ix < nx) && (pix_x*pix_x + pix_y*pix_y <= fov_radius2)){
-                atomicAdd(&image[ib][ix][iy],frac2*sinoval*travPixlen);
+                // atomicAdd(&image[ib][ix][iy],frac2*sinoval*travPixlen);
+                image[ib][ix][iy] += frac2*sinoval*travPixlen;
               }
           }
           ixOld = ix;
