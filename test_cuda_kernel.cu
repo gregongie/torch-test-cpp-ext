@@ -338,8 +338,8 @@ __global__ void projection_wpd_kernel(const torch::PackedTensorAccessor32<float,
               float frac= bin_loc - static_cast<int>(bin_loc);
               auto pix_value = image[ib][ix][iy];
 
-              atomicAdd(&sinogram[ib][sindex][nbin1],frac*bpweight*ds*pix_value);
-              atomicAdd(&sinogram[ib][sindex][nbin2],(1.0-frac)*bpweight*ds*pix_value);
+              atomicAdd(&sinogram[ib][sindex][nbin2],frac*bpweight*ds*pix_value);
+              atomicAdd(&sinogram[ib][sindex][nbin1],(1.0-frac)*bpweight*ds*pix_value);
 
               // float det_value = frac*sinogram[ib][sindex][nbin2]+(1.0-frac)*sinogram[ib][sindex][nbin1];
               // atomicAdd(&image[ib][ix][iy],bpweight*det_value*ds);
