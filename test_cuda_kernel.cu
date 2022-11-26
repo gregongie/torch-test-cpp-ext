@@ -184,7 +184,7 @@ __global__ void backprojection_view_kernel(
     const float xdiff=xbin-xsource;
     const float ydiff=ybin-ysource;
     const float xad=abs(xdiff)*dy;
-    const loat yad=abs(ydiff)*dx;
+    const float yad=abs(ydiff)*dx;
 
     if (xad>yad){   // loop through x-layers of image if xad>yad. This ensures ray hits only one or two pixels per layer
        float slope=ydiff/xdiff;
