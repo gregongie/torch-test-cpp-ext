@@ -33,57 +33,56 @@ __global__ void projection_view_kernel(
   const int sindex = blockIdx.y * blockDim.y + threadIdx.y;
   const int ib = blockIdx.z;
 
-  //loop over detector views
-  // for (int uindex = 0; uindex < nbins; uindex++){
+  //compute projection for a single ray
   if ((uindex < nbins) && (sindex < nviews)) {
-    auto s = sindex*ds;
+    const float s = sindex*ds;
 
     // location of the source
-    auto xsource = radius*cos(s);
-    auto ysource = radius*sin(s);
+    const float xsource = radius*cos(s);
+    const float ysource = radius*sin(s);
 
     // detector center
-    auto xDetCenter = (radius - source_to_detector)*cos(s);
-    auto yDetCenter = (radius - source_to_detector)*sin(s);
+    const float xDetCenter = (radius - source_to_detector)*cos(s);
+    const float yDetCenter = (radius - source_to_detector)*sin(s);
 
     // unit vector in the direction of the detector line
-    auto eux = -sin(s);
-    auto euy =  cos(s);
+    const float eux = -sin(s);
+    const float euy =  cos(s);
 
-    auto u = u0 + (uindex+0.5)*du;
-    auto xbin = xDetCenter + eux*u;
-    auto ybin = yDetCenter + euy*u;
+    const float u = u0 + (uindex+0.5)*du;
+    const float xbin = xDetCenter + eux*u;
+    const float ybin = yDetCenter + euy*u;
 
-    auto xl = x0;
-    auto yl = y0;
+    const float xl = x0;
+    const float yl = y0;
 
-    auto xdiff = xbin-xsource;
-    auto ydiff = ybin-ysource;
-    auto xad = abs(xdiff)*dy;
-    auto yad = abs(ydiff)*dx;
+    const float xdiff = xbin-xsource;
+    const float ydiff = ybin-ysource;
+    const float xad = abs(xdiff)*dy;
+    const float yad = abs(ydiff)*dx;
 
-    float raysum = 0.0; // acculumator variable
+    float raysum = 0.0f; // acculumator variable
 
     if (xad > yad){  // loop through x-layers of image if xad>yad. This ensures ray hits only one or two pixels per layer
-      auto slope = ydiff/xdiff;
-      auto travPixlen = dx*sqrt(1.0+slope*slope);
-      auto yIntOld = ysource+slope*(xl-xsource);
+      float slope = ydiff/xdiff;
+      float travPixlen = dx*sqrt(1.0f+slope*slope);
+      float yIntOld = ysource+slope*(xl-xsource);
       int iyOld = static_cast<int>(floor((yIntOld-y0)/dy));
       // loop over x-layers
       for (int ix = 0; ix < nx; ix++){
-         auto x=xl+dx*(ix + 1.0);
-         auto yIntercept=ysource+slope*(x-xsource);
+         float x=xl+dx*(ix + 1.0f);
+         float yIntercept=ysource+slope*(x-xsource);
          int iy = static_cast<int>(floor((yIntercept-y0)/dy));
          if (iy == iyOld){ // if true, ray stays in the same pixel for this x-layer
             if ((iy >= 0) && (iy < ny)) {
                raysum += travPixlen*image[ib][ix][iy];
             }
          } else {    // else case is if ray hits two pixels for this x-layer
-            auto yMid=dy*max(iy,iyOld)+yl;
-            auto ydist1=abs(yMid-yIntOld);
-            auto ydist2=abs(yIntercept-yMid);
-            auto frac1=ydist1/(ydist1+ydist2);
-            auto frac2=1.0-frac1;
+            float yMid=dy*max(iy,iyOld)+yl;
+            float ydist1=abs(yMid-yIntOld);
+            float ydist2=abs(yIntercept-yMid);
+            float frac1=ydist1/(ydist1+ydist2);
+            float frac2=1.0f-frac1;
             if ((iyOld >= 0) && (iyOld < ny)){
                raysum += frac1*travPixlen*image[ib][ix][iyOld];
              }
@@ -96,25 +95,25 @@ __global__ void projection_view_kernel(
        }
 
     } else {// through y-layers of image if xad<=yad
-      auto slopeinv=xdiff/ydiff;
-      auto travPixlen=dy*sqrt(1.0+slopeinv*slopeinv);
-      auto xIntOld=xsource+slopeinv*(yl-ysource);
+      float slopeinv=xdiff/ydiff;
+      float travPixlen=dy*sqrt(1.0+slopeinv*slopeinv);
+      float xIntOld=xsource+slopeinv*(yl-ysource);
       int ixOld= static_cast<int>(floor((xIntOld-x0)/dx));
       // loop over y-layers
       for (int iy = 0; iy < ny; iy++){
-         auto y=yl+dy*(iy + 1.0);
-         auto xIntercept=xsource+slopeinv*(y-ysource);
+         float y=yl+dy*(iy + 1.0);
+         float xIntercept=xsource+slopeinv*(y-ysource);
          int ix = static_cast<int>(floor((xIntercept-x0)/dx));
          if (ix == ixOld){// if true, ray stays in the same pixel for this y-layer
             if ((ix >= 0) && (ix < nx)){
                raysum += travPixlen*image[ib][ix][iy];
              }
          } else {  // else case is if ray hits two pixels for this y-layer
-            auto xMid=dx*max(ix,ixOld)+xl;
-            auto xdist1=abs(xMid-xIntOld);
-            auto xdist2=abs(xIntercept-xMid);
-            auto frac1=xdist1/(xdist1+xdist2);
-            auto frac2=1.0-frac1;
+            float xMid=dx*max(ix,ixOld)+xl;
+            float xdist1=abs(xMid-xIntOld);
+            float xdist2=abs(xIntercept-xMid);
+            float frac1=xdist1/(xdist1+xdist2);
+            float frac2=1.0-frac1;
             if ((ixOld >= 0) && (ixOld < nx)){
                raysum += frac1*travPixlen*image[ib][ixOld][iy];
             }
@@ -154,8 +153,6 @@ __global__ void backprojection_view_kernel(
   const int uindex = blockIdx.x * blockDim.x + threadIdx.x; //detector index
   const int sindex = blockIdx.y * blockDim.y + threadIdx.y; //view index
   const int ib = blockIdx.z; //batch index
-  // const int ib = blockIdx.x;
-  // const int sindex = threadIdx.x;
 
   //compute backprojection for a single ray
   if ((uindex < nbins) && (sindex < nviews)) {
@@ -177,23 +174,24 @@ __global__ void backprojection_view_kernel(
 
     const float fov_radius2 = fov_radius*fov_radius; //used to set image mask
 
-    float u = u0+(uindex+0.5)*du;
-    float xbin = xDetCenter + eux*u;
-    float ybin = yDetCenter + euy*u;
+    const float u = u0+(uindex+0.5)*du;
+    const float xbin = xDetCenter + eux*u;
+    const float ybin = yDetCenter + euy*u;
 
-    float xl=x0;
-    float yl=y0;
+    const float xl=x0;
+    const float yl=y0;
 
-    float xdiff=xbin-xsource;
-    float ydiff=ybin-ysource;
-    float xad=abs(xdiff)*dy;
-    float yad=abs(ydiff)*dx;
+    const float xdiff=xbin-xsource;
+    const float ydiff=ybin-ysource;
+    const float xad=abs(xdiff)*dy;
+    const loat yad=abs(ydiff)*dx;
 
     if (xad>yad){   // loop through x-layers of image if xad>yad. This ensures ray hits only one or two pixels per layer
        float slope=ydiff/xdiff;
        float travPixlen=dx*sqrt(1.0+slope*slope);
        float yIntOld=ysource + slope*(xl-xsource);
        int iyOld = static_cast<int>(floor((yIntOld-y0)/dy));
+       // loop over x-layers
        for (int ix = 0; ix < nx; ix++){
           float x = xl + dx*(ix + 1.0);
           float yIntercept=ysource+slope*(x-xsource);
@@ -202,7 +200,7 @@ __global__ void backprojection_view_kernel(
           float pix_y = y0 + dy*(iy+0.5); //used to set mask
           float pix_y_old = y0 + dy*(iyOld+0.5); // used to set mask
             if (iy == iyOld){ // if true, ray stays in the same pixel for this x-layer
-             if ((pix_x*pix_x + pix_y*pix_y <= fov_radius2) && (iy >= 0) && (iy < ny)){
+             if ((iy >= 0) && (iy < ny) && (pix_x*pix_x + pix_y*pix_y <= fov_radius2)){
                 atomicAdd(&image[ib][ix][iy],sinoval*travPixlen);
                 // image[ib][ix][iy] += sinoval*travPixlen;
               }
@@ -260,8 +258,7 @@ __global__ void backprojection_view_kernel(
           xIntOld = xIntercept;
        }
      }
-   } // end uindex for loop
-
+   } // end main block
 }
 
 // computes pixel-driven projetion
@@ -335,11 +332,11 @@ __global__ void projection_wpd_kernel(const torch::PackedTensorAccessor32<float,
               float bin_loc = (upos-u0)/du + 0.5;
               int nbin1 = static_cast<int>(bin_loc)-1;
               int nbin2 = nbin1+1;
-              float frac= bin_loc - static_cast<int>(bin_loc);
+              float frac = bin_loc - static_cast<int>(bin_loc);
               auto pix_value = image[ib][ix][iy];
 
+              atomicAdd(&sinogram[ib][sindex][nbin1],(1.0f-frac)*bpweight*ds*pix_value);
               atomicAdd(&sinogram[ib][sindex][nbin2],frac*bpweight*ds*pix_value);
-              atomicAdd(&sinogram[ib][sindex][nbin1],(1.0-frac)*bpweight*ds*pix_value);
 
               // float det_value = frac*sinogram[ib][sindex][nbin2]+(1.0-frac)*sinogram[ib][sindex][nbin1];
               // atomicAdd(&image[ib][ix][iy],bpweight*det_value*ds);
